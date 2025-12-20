@@ -10,7 +10,8 @@ export interface User {
   name?: string;
 }
 
-export type ExportFormat = 'pdf' | 'md' | 'html' | 'text' | 'doc' | 'docx' | 'json' | 'csv';
+export type ExportFormat = 'pdf' | 'md' | 'html' | 'text' | 'json';
+export type MediaFormat = 'm4a' | 'mp3' | 'av1' | 'mp4';
 
 export interface LogEntry {
   id: string;
