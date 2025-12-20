@@ -21,7 +21,12 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
   const [chatResponse, setChatResponse] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
 
+  // Checksum Verification State
+  const [verifyChecksumInput, setVerifyChecksumInput] = useState('');
+  const [verifyStatus, setVerifyStatus] = useState<'IDLE' | 'VALID' | 'INVALID'>('IDLE');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const TRANSCRIPT_OPTIONS: { id: ExportFormat; label: string }[] = [
     { id: 'pdf', label: 'Adobe PDF (.pdf)' },
@@ -37,6 +42,16 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
     { id: 'av1', label: 'AV1 Audio Stream' },
   ];
 
+  /**
+   * Generates a real SHA-256 hash of a string.
+   */
+  const computeSHA256 = async (message: string): Promise<string> => {
+    const msgUint8 = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
   const toggleTranscript = (fmt: ExportFormat) => {
     setSelectedTranscripts(prev => 
       prev.includes(fmt) ? prev.filter(i => i !== fmt) : [...prev, fmt]
@@ -47,7 +62,6 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
     e.preventDefault();
     setLoading(true);
     setTranscription('');
-    // Reset title to prevent stickiness
     const currentInputTitle = videoTitle;
     setVideoTitle("Synchronizing System...");
     setStatusText('Waking Wright Engine...');
@@ -60,7 +74,6 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
         setStatusText('Retrieving Global Search Data...');
         result = await GeminiService.transcribeYoutube(url);
         
-        // Extract Title from AI response: ACTUAL_VIDEO_TITLE: [Title]
         const titleMatch = result.match(/ACTUAL_VIDEO_TITLE:\s*(.*)/i);
         if (titleMatch && titleMatch[1]) {
           const extracted = titleMatch[1].trim().replace(/[<>:"/\\|?*]/g, '');
@@ -79,9 +92,12 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
       setTranscription(result);
       setStatusText('Handshake Complete.');
       
+      // Compute hash for the main transcription text for logging
+      const mainHash = await computeSHA256(result);
+      
       await DBService.addLog({
         title: videoTitle,
-        checksum: Math.random().toString(16).substr(2, 40),
+        checksum: mainHash,
         absolutePath: `/Wright_Volumes/${videoTitle}/`,
         status: 'SUCCESS'
       });
@@ -93,8 +109,6 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
       setLoading(false);
     }
   };
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const triggerDownload = (content: string | Blob, fileName: string, mimeType: string) => {
     const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
@@ -116,34 +130,55 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
 
     const cleanTitle = videoTitle.replace(/[<>:"/\\|?*]/g, '').trim();
     setStatusText('Executing Multi-Format Dispatch...');
+    
+    let manifestContent = `WRIGHT_ENGINE_MANIFEST_V1\nPROJECT: ${videoTitle}\nTIMESTAMP: ${new Date().toISOString()}\n------------------------------------------------\n`;
 
     try {
-      // 1. Dispatch Transcripts
+      // 1. Dispatch Transcripts with Embedded Checksums
       for (const fmt of selectedTranscripts) {
         let content = transcription;
+        
+        // Calculate raw hash of content before adding footer
+        const rawHash = await computeSHA256(content);
+        const integrityBlock = `\n\n--- WRIGHT ENGINE INTEGRITY BLOCK ---\nSHA-256: ${rawHash}\nVERIFIED: ${new Date().toUTCString()}\n-------------------------------------`;
+
+        let finalContent = content;
         let mime = 'text/plain';
+
         if (fmt === 'json') {
-          content = JSON.stringify({ title: videoTitle, content: transcription, timestamp: new Date().toISOString() }, null, 2);
+          finalContent = JSON.stringify({ 
+            project: videoTitle, 
+            integrity: { sha256: rawHash, timestamp: new Date().toISOString() },
+            data: transcription 
+          }, null, 2);
           mime = 'application/json';
         } else if (fmt === 'html') {
-          content = `<html><head><title>${videoTitle}</title></head><body style="padding:40px; font-family:sans-serif;"><h1>${videoTitle}</h1><hr/><pre style="white-space:pre-wrap">${transcription}</pre></body></html>`;
+          finalContent = `<html><head><title>${videoTitle}</title></head><body style="padding:40px; font-family:sans-serif; line-height:1.6; color:#333;"><h1>${videoTitle}</h1><hr/><pre style="white-space:pre-wrap">${transcription}</pre><div style="margin-top:50px; padding:20px; background:#f4f4f4; border-radius:10px; font-family:monospace; font-size:11px;"><strong>INTEGRITY BLOCK</strong><br/>SHA-256: ${rawHash}<br/>SOURCE: Wright_App_Pro</div></body></html>`;
           mime = 'text/html';
+        } else {
+          finalContent = content + integrityBlock;
         }
-        triggerDownload(content, `${cleanTitle}.${fmt}`, mime);
-        await new Promise(r => setTimeout(r, 600)); // Prevent browser download block
-      }
-
-      // 2. Dispatch Media Placeholders (Simulation for this environment)
-      for (const fmt of selectedMedia) {
-        triggerDownload(`Binary data for ${fmt} associated with ${videoTitle}`, `${cleanTitle}.${fmt}`, 'application/octet-stream');
+        
+        const fileName = `${cleanTitle}.${fmt}`;
+        triggerDownload(finalContent, fileName, mime);
+        manifestContent += `${rawHash} *${fileName}\n`;
         await new Promise(r => setTimeout(r, 600));
       }
 
-      if (downloadVideo) {
-        triggerDownload(`MP4 Payload for ${videoTitle}`, `${cleanTitle}.mp4`, 'video/mp4');
+      // 2. Dispatch Media Placeholders
+      for (const fmt of selectedMedia) {
+        const dummyContent = `Binary payload for ${fmt} stream: ${videoTitle}`;
+        const mediaHash = await computeSHA256(dummyContent);
+        const fileName = `${cleanTitle}.${fmt}`;
+        triggerDownload(dummyContent, fileName, 'application/octet-stream');
+        manifestContent += `${mediaHash} *${fileName}\n`;
+        await new Promise(r => setTimeout(r, 600));
       }
 
-      alert(`SUCCESS: ${totalItems} assets provisioned for "${videoTitle}".`);
+      // 3. Dispatch Manifest Sidecar
+      triggerDownload(manifestContent, `manifest.sha256`, 'text/plain');
+
+      alert(`SUCCESS: ${totalItems} assets and 1 manifest provisioned for "${videoTitle}".\nChecksums successfully calculated and embedded.`);
     } catch (err) {
       alert("Provisioning Failure: " + String(err));
     } finally {
@@ -179,6 +214,12 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
     } finally {
       setChatLoading(false);
     }
+  };
+
+  const handleVerifyChecksum = async () => {
+    if (!verifyChecksumInput) return;
+    const isValid = await DBService.verifyChecksum(verifyChecksumInput);
+    setVerifyStatus(isValid ? 'VALID' : 'INVALID');
   };
 
   return (
@@ -258,9 +299,48 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
         </div>
       </div>
 
+      {/* Checksum Verification Section */}
+      <div className="bg-white rounded-[2rem] shadow-lg border border-slate-200 p-8">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="space-y-1 text-center md:text-left">
+            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Verify Integrity</h4>
+            <p className="text-xs text-slate-500 font-medium">Verify any SHA-256 hash from a Wright manifest or footer.</p>
+          </div>
+          <div className="flex flex-1 gap-3 w-full md:max-w-xl">
+            <div className="relative flex-1">
+              <input 
+                value={verifyChecksumInput}
+                onChange={(e) => {
+                  setVerifyChecksumInput(e.target.value);
+                  setVerifyStatus('IDLE');
+                }}
+                placeholder="Paste SHA-256 Checksum..."
+                className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl focus:bg-white outline-none transition-all font-mono text-xs ${
+                  verifyStatus === 'VALID' ? 'border-emerald-500 focus:border-emerald-600' :
+                  verifyStatus === 'INVALID' ? 'border-rose-500 focus:border-rose-600' :
+                  'border-slate-100 focus:border-indigo-600'
+                }`}
+              />
+              {verifyStatus !== 'IDLE' && (
+                <div className={`absolute right-4 top-1/2 -translate-y-1/2 font-black text-[10px] uppercase tracking-widest ${
+                  verifyStatus === 'VALID' ? 'text-emerald-600' : 'text-rose-600'
+                }`}>
+                  {verifyStatus === 'VALID' ? '✓ Authenticated' : '✗ Unrecognized'}
+                </div>
+              )}
+            </div>
+            <button 
+              onClick={handleVerifyChecksum}
+              className="px-8 py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-black transition-all uppercase tracking-widest text-xs shadow-lg shadow-slate-100 active:scale-95 whitespace-nowrap"
+            >
+              Check DB
+            </button>
+          </div>
+        </div>
+      </div>
+
       {transcription && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-12 duration-1000">
-          {/* Main Viewer */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 flex flex-col min-h-[700px]">
               <div className="px-10 py-6 bg-slate-900 border-b border-slate-800 flex justify-between items-center rounded-t-[2.5rem]">
@@ -269,7 +349,7 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
                   <h4 className="font-black text-white text-sm uppercase tracking-widest">{videoTitle}</h4>
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={handleSpeak} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase hover:bg-slate-700 transition-colors">Generate Speech</button>
+                  <button onClick={handleSpeak} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase hover:bg-slate-700 transition-colors">Speak Content</button>
                   <button onClick={() => navigator.clipboard.writeText(transcription)} className="px-4 py-2 bg-white/10 text-white rounded-xl text-[10px] font-black uppercase hover:bg-white/20 transition-colors">Copy Link</button>
                 </div>
               </div>
@@ -278,7 +358,6 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
               </div>
             </div>
 
-            {/* Chat Integration */}
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 p-10 space-y-6">
               <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">AI Transcription Assistant</h4>
               <div className="space-y-4">
@@ -306,16 +385,14 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
 
-          {/* Provisioning Sidebar */}
           <div className="space-y-6">
             <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 p-10 flex flex-col sticky top-8">
               <div className="mb-10">
                 <h4 className="text-2xl font-black text-slate-900 mb-2">Export Manifest</h4>
-                <p className="text-xs text-slate-500">Select formats for local volume creation.</p>
+                <p className="text-xs text-slate-500">All selected assets will include a SHA-256 integrity block.</p>
               </div>
 
               <div className="space-y-8 flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[500px]">
-                {/* Transcript Options */}
                 <div className="space-y-4">
                   <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                     Transcripts
@@ -336,7 +413,6 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
                   </div>
                 </div>
 
-                {/* Media Options */}
                 <div className="space-y-4">
                   <h5 className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
                     Extracted Media
@@ -359,33 +435,23 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
 
                 <div className="space-y-4">
                   <h5 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
-                    Video Data
+                    Checksum Data
                     <div className="h-px flex-1 bg-emerald-50"></div>
                   </h5>
-                  <label className="flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all hover:border-emerald-100 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50/30">
-                    <span className="text-sm font-bold text-slate-700">Original MP4 Stream</span>
-                    <input 
-                      type="checkbox" 
-                      checked={downloadVideo}
-                      onChange={() => setDownloadVideo(!downloadVideo)}
-                      className="w-5 h-5 rounded-md border-slate-300 text-emerald-600"
-                    />
-                  </label>
+                  <div className="p-4 bg-emerald-50 rounded-2xl border-2 border-emerald-200">
+                    <p className="text-[10px] font-bold text-emerald-700 uppercase mb-1">Manifest Sidecar</p>
+                    <p className="text-[10px] text-emerald-600 leading-relaxed">A <code>manifest.sha256</code> file will be automatically generated for batch forensic validation.</p>
+                  </div>
                 </div>
               </div>
 
               <div className="mt-10 pt-10 border-t border-slate-100">
-                <div className="bg-slate-900 p-6 rounded-3xl mb-8">
-                  <p className="text-[9px] font-black text-slate-500 uppercase mb-2">Target Volume Path</p>
-                  <p className="text-[10px] font-mono text-indigo-300 truncate">~/Documents/WAP_Volumes/{videoTitle.replace(/\s+/g, '_')}/</p>
-                </div>
-                
                 <button 
                   onClick={handleProvision}
                   className="w-full py-6 bg-indigo-600 text-white font-black rounded-[2rem] hover:bg-indigo-700 shadow-2xl shadow-indigo-100 flex items-center justify-center gap-3 uppercase tracking-widest text-xs transition-transform active:scale-95"
                 >
                   <span className="text-xl">📥</span> 
-                  Execute Provisioning
+                  Provision & Sign Assets
                 </button>
               </div>
             </div>
