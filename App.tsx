@@ -14,6 +14,7 @@ import SupportForm from './components/SupportForm';
 import Settings from './components/Settings';
 import AuthModal from './components/AuthModal';
 import DiagnosticLab from './components/DiagnosticLab';
+import AdminPanel from './components/AdminPanel';
 
 const App: React.FC = () => {
   const [agreed, setAgreed] = useState<boolean>(false);
@@ -91,6 +92,7 @@ const App: React.FC = () => {
       case 'tickets': return <TicketViewer />;
       case 'support': return <SupportForm user={user} />;
       case 'diagnostics': return <DiagnosticLab />;
+      case 'admin': return <AdminPanel />;
       case 'settings': return <Settings user={user} />;
       default: return <Dashboard user={user} />;
     }
@@ -112,12 +114,12 @@ const App: React.FC = () => {
           </div>
           <div className="flex items-center gap-5">
             <div className="text-right">
-              <p className="text-sm font-bold text-slate-900">{user.email}</p>
+              <p className="text-sm font-bold text-slate-900">{user.name || user.email}</p>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{user.role}</p>
             </div>
             <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 p-[2px] shadow-lg">
-              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center text-indigo-600 font-black">
-                {user.email[0].toUpperCase()}
+              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center text-indigo-600 font-black overflow-hidden">
+                {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : user.email[0].toUpperCase()}
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 
-import { LogEntry, Ticket, BackupRecord } from '../types';
+import { LogEntry, Ticket, BackupRecord, User } from '../types';
 import { GB_DATE_OPTIONS } from '../constants';
 
 const STORAGE_KEYS = {
@@ -14,6 +14,7 @@ export class DBService {
     return new Date().toLocaleString('en-GB', GB_DATE_OPTIONS);
   }
 
+  // --- LOGS ---
   static async getLogs(): Promise<LogEntry[]> {
     const data = localStorage.getItem(STORAGE_KEYS.LOGS);
     return data ? JSON.parse(data) : [];
@@ -30,6 +31,7 @@ export class DBService {
     localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
   }
 
+  // --- TICKETS ---
   static async getTickets(): Promise<Ticket[]> {
     const data = localStorage.getItem(STORAGE_KEYS.TICKETS);
     return data ? JSON.parse(data) : [];
@@ -37,7 +39,6 @@ export class DBService {
 
   static async createTicket(subject: string, description: string): Promise<Ticket> {
     const tickets = await this.getTickets();
-    // Alphanumerical sequential logic
     const nextIdNumber = tickets.length + 1;
     const nextId = `WAP-TKT-${nextIdNumber.toString().padStart(4, '0')}`;
     
@@ -54,6 +55,7 @@ export class DBService {
     return newTicket;
   }
 
+  // --- BACKUPS ---
   static async getBackups(): Promise<BackupRecord[]> {
     const data = localStorage.getItem(STORAGE_KEYS.BACKUPS);
     return data ? JSON.parse(data) : [];
@@ -70,6 +72,43 @@ export class DBService {
     };
     backups.push(newRecord);
     localStorage.setItem(STORAGE_KEYS.BACKUPS, JSON.stringify(backups));
+  }
+
+  // --- USERS (Admin Control) ---
+  static async getUsers(): Promise<User[]> {
+    const data = localStorage.getItem(STORAGE_KEYS.USERS);
+    if (!data) {
+      const seedAdmin: User = {
+        id: 'super-admin-0',
+        email: 'accounts@thewrightsupport.com',
+        name: 'Super Admin',
+        role: 'SUPER_ADMIN',
+        isFirstLogin: false,
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=WrightSupport'
+      };
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([seedAdmin]));
+      return [seedAdmin];
+    }
+    return JSON.parse(data);
+  }
+
+  static async saveUser(user: User): Promise<void> {
+    const data = localStorage.getItem(STORAGE_KEYS.USERS);
+    const users: User[] = data ? JSON.parse(data) : [];
+    
+    const index = users.findIndex(u => u.id === user.id);
+    if (index >= 0) {
+      users[index] = user;
+    } else {
+      users.push(user);
+    }
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  }
+
+  static async deleteUser(id: string): Promise<void> {
+    const users = await this.getUsers();
+    const filtered = users.filter(u => u.id !== id);
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
   }
 
   static async verifyChecksum(checksum: string): Promise<boolean> {

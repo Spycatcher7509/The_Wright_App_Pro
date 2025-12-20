@@ -1,11 +1,13 @@
 
-export type UserRole = 'ADMIN' | 'STANDARD';
+export type UserRole = 'ADMIN' | 'STANDARD' | 'SUPER_ADMIN';
 
 export interface User {
   id: string;
   email: string;
   role: UserRole;
   isFirstLogin: boolean;
+  avatar?: string; // Base64 or URL
+  name?: string;
 }
 
 export type ExportFormat = 'pdf' | 'md' | 'html' | 'text' | 'doc' | 'docx' | 'json' | 'csv';

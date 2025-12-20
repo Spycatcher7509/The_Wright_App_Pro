@@ -17,8 +17,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     { id: 'tickets', label: 'View Tickets', icon: '🎫' },
     { id: 'support', label: 'Support Hub', icon: '📩' },
     { id: 'diagnostics', label: 'Diagnostics Lab', icon: '🧬' },
+    { id: 'admin', label: 'Command Centre', icon: '🛠️', roleRequired: ['ADMIN', 'SUPER_ADMIN'] },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
+
+  const filteredMenu = menuItems.filter(item => {
+    if (!item.roleRequired) return true;
+    if (Array.isArray(item.roleRequired)) {
+      return item.roleRequired.includes(user.role);
+    }
+    return item.roleRequired === user.role;
+  });
 
   return (
     <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col h-full border-r border-slate-800">
@@ -29,7 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
         </div>
         
         <nav className="space-y-1">
-          {menuItems.map((item) => (
+          {filteredMenu.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}

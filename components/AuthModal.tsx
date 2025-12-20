@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 import { APP_TITLE } from '../constants';
+import { DBService } from '../services/dbService';
 
 interface AuthModalProps {
   onLogin: (user: User) => void;
@@ -13,43 +14,62 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsAuthenticating(true);
 
-    if (password === 'OnePassword') {
-      setIsChangingPassword(true);
-      return;
-    }
+    try {
+      // 1. Mandatory password change for initial users
+      if (password === 'OnePassword') {
+        setIsChangingPassword(true);
+        return;
+      }
 
-    // Mock successful login
-    if (password.length >= 8) {
-      onLogin({
-        id: 'user-1',
-        email: email || 'user@example.com',
-        role: email.includes('admin') ? 'ADMIN' : 'STANDARD',
-        isFirstLogin: false
-      });
-    } else {
-      setError('Invalid credentials or security policy violation.');
+      // 2. Fetch identities from DB
+      const users = await DBService.getUsers();
+      const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+      if (existingUser && password.length >= 8) {
+        onLogin(existingUser);
+      } else if (!existingUser) {
+        setError('Security Error: Identity not found in database.');
+      } else {
+        setError('Invalid credentials or security policy violation.');
+      }
+    } catch (err) {
+      setError('Internal System Error: Handshake failed.');
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 8) {
       setError('New password must be at least 8 characters.');
       return;
     }
-    // Proceed to login
-    onLogin({
-      id: 'user-1',
-      email: email || 'user@example.com',
-      role: email.includes('admin') ? 'ADMIN' : 'STANDARD',
-      isFirstLogin: false
-    });
+    
+    const users = await DBService.getUsers();
+    const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+    if (existingUser) {
+      const updatedUser = { ...existingUser, isFirstLogin: false };
+      await DBService.saveUser(updatedUser);
+      onLogin(updatedUser);
+    } else {
+      // Create a default if somehow bypassed
+      onLogin({
+        id: `user-${Date.now()}`,
+        email: email,
+        role: 'STANDARD',
+        isFirstLogin: false
+      });
+    }
   };
 
   if (forgotSent) {
@@ -87,7 +107,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="admin@wrightapp.pro"
+                  placeholder="accounts@thewrightsupport.com"
                 />
               </div>
               <div className="space-y-2">
@@ -106,10 +126,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
                 <p className="text-[10px] text-slate-400 italic">Default: OnePassword (Mandatory Change)</p>
               </div>
 
-              {error && <p className="text-xs text-red-500 font-bold">{error}</p>}
+              {error && <p className="text-xs text-red-500 font-bold animate-pulse">{error}</p>}
 
-              <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all">
-                Enter System
+              <button 
+                type="submit" 
+                disabled={isAuthenticating}
+                className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all disabled:opacity-50"
+              >
+                {isAuthenticating ? 'Authorising...' : 'Enter System'}
               </button>
             </form>
           ) : (
