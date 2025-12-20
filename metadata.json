@@ -1,0 +1,8 @@
+{
+  "name": "The_Wright_App_pro",
+  "description": "A high-performance transcription and file management suite developed by Spike Wright, featuring UK law-compliant indemnity, multi-format export, and robust logging.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

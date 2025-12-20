@@ -1,0 +1,37 @@
+
+export type UserRole = 'ADMIN' | 'STANDARD';
+
+export interface User {
+  id: string;
+  email: string;
+  role: UserRole;
+  isFirstLogin: boolean;
+}
+
+export type ExportFormat = 'pdf' | 'md' | 'html' | 'text' | 'doc' | 'docx' | 'json' | 'csv';
+
+export interface LogEntry {
+  id: string;
+  timestamp: string; // GBFormat
+  title: string;
+  checksum: string;
+  absolutePath: string;
+  errorMessage?: string;
+  status: 'SUCCESS' | 'FAILURE';
+}
+
+export interface Ticket {
+  id: string; // Alphanumerical sequential e.g. TKT-001
+  timestamp: string;
+  subject: string;
+  description: string;
+  status: 'OPEN' | 'CLOSED';
+}
+
+export interface BackupRecord {
+  id: string;
+  timestamp: string;
+  description: string;
+  path: string;
+  type: 'BACKUP' | 'RESTORE';
+}
