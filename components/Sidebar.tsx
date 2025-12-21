@@ -15,7 +15,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     { id: 'transcribe', label: 'Transcription Hub', icon: '🎙️' },
     { id: 'voice', label: 'Voice Lab', icon: '🗣️' },
     { id: 'intercom', label: 'Secure Intercom', icon: '📡' },
-    { id: 'guide', label: 'Resource Centre', icon: '📚' },
+    { id: 'guide', label: 'User Guide', icon: '📚' },
     { id: 'logs', label: 'View Logs', icon: '📜' },
     { id: 'tickets', label: 'View Tickets', icon: '🎫' },
     { id: 'support', label: 'Support Hub', icon: '📩' },

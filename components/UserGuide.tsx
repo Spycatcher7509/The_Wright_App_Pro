@@ -28,7 +28,7 @@ const UserGuide: React.FC<{ user: User }> = ({ user }) => {
       {/* Table of Contents */}
       <div className="w-72 flex flex-col gap-4">
         <div className="bg-slate-900 rounded-[2rem] p-6 border border-slate-800 shadow-xl h-full flex flex-col">
-          <h4 className="text-white font-black text-[10px] uppercase tracking-[0.2em] mb-6 border-b border-slate-800 pb-4">Operations Manual</h4>
+          <h4 className="text-white font-black text-[10px] uppercase tracking-[0.2em] mb-6 border-b border-slate-800 pb-4">User Guide Manual</h4>
           <nav className="space-y-1 flex-1">
             {sections.map(s => (
               <button
@@ -57,7 +57,7 @@ const UserGuide: React.FC<{ user: User }> = ({ user }) => {
           {activeSection === 'overview' && (
             <div className="space-y-8 animate-in slide-in-from-right-4">
               <div className="space-y-2">
-                <h3 className="text-3xl font-black text-slate-900 italic tracking-tighter">The_Wright_App_pro: Global Manual</h3>
+                <h3 className="text-3xl font-black text-slate-900 italic tracking-tighter">The_Wright_App_pro: User Guide</h3>
                 <p className="text-slate-500 font-medium">Authorised Operational Intelligence for the Wright Engine Ecosystem.</p>
               </div>
               <div className="grid grid-cols-2 gap-6">
