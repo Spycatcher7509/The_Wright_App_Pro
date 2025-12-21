@@ -7,7 +7,7 @@ import { GeminiService } from '../services/geminiService';
 const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
-  const [fileType, setFileType] = useState<'audio' | 'video' | 'youtube'>('youtube');
+  const [fileType, setFileType] = useState<'audio' | 'video' | 'youtube' | 'record'>('youtube');
   const [url, setUrl] = useState('');
   const [transcription, setTranscription] = useState('');
   const [videoTitle, setVideoTitle] = useState("Untitled Project");
@@ -23,6 +23,21 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
   const [encryptionProgress, setEncryptionProgress] = useState(0);
   const [encryptionStage, setEncryptionStage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
+
+  // Voice Recording States (Chat)
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // Main Session Recording States
+  const [isRecordingMain, setIsRecordingMain] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const mainRecorderRef = useRef<MediaRecorder | null>(null);
+  const mainChunksRef = useRef<Blob[]>([]);
+  const timerIntervalRef = useRef<number | null>(null);
+
+  // Drag and Drop State
+  const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatFileRef = useRef<HTMLInputElement>(null);
@@ -149,14 +164,10 @@ startxref
     }
   };
 
-  const handleChat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatQuestion || chatLoading || !transcription) return;
-    const msg = chatQuestion;
-    setChatQuestion('');
+  const executeChatMessage = async (text: string) => {
+    if (!text || chatLoading || !transcription) return;
     setChatLoading(true);
 
-    // Multi-Stage Granular Encryption Feedback (GB English)
     setEncryptionStage('Initialising Handshake...');
     setEncryptionProgress(5);
     await new Promise(r => setTimeout(r, 150));
@@ -166,7 +177,7 @@ startxref
     await new Promise(r => setTimeout(r, 200));
 
     setEncryptionStage('Hashing SHA-512 Blocks...');
-    const hash = await computeSHA512(msg);
+    const hash = await computeSHA512(text);
     setEncryptionProgress(55);
     await new Promise(r => setTimeout(r, 250));
 
@@ -178,17 +189,14 @@ startxref
     setEncryptionProgress(100);
     await new Promise(r => setTimeout(r, 100));
 
-    // Clear encryption state and show user message
     setEncryptionProgress(0);
     setEncryptionStage('');
-    setChatHistory(prev => [...prev, { role: 'user', text: msg, hash }]);
+    setChatHistory(prev => [...prev, { role: 'user', text, hash }]);
     
-    // Start iMessage Typing Indicator
     setIsAiTyping(true);
 
     try {
-      const resp = await GeminiService.chatAboutTranscript(transcription, msg);
-      // Simulate "Thinking" time for the typing indicator
+      const resp = await GeminiService.chatAboutTranscript(transcription, text);
       const simulatedDelay = Math.min(2500, resp.length * 15);
       await new Promise(r => setTimeout(r, simulatedDelay));
       
@@ -199,6 +207,105 @@ startxref
       setIsAiTyping(false);
       setChatLoading(false);
     }
+  };
+
+  const handleChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const msg = chatQuestion;
+    setChatQuestion('');
+    await executeChatMessage(msg);
+  };
+
+  // Voice Recording Logic (Chat)
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], "voice_query.webm", { type: 'audio/webm' });
+        
+        setStatusText('Transcribing Vocal Command...');
+        try {
+          const transcribedText = await GeminiService.transcribeFile(audioFile);
+          if (transcribedText) {
+            await executeChatMessage(transcribedText);
+          }
+        } catch (err) {
+          console.error("Transcription failed", err);
+          alert("Handshake Failure: Could not transcribe vocal asset.");
+        } finally {
+          setStatusText('');
+        }
+        
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setStatusText('Recording Vocal Asset...');
+    } catch (err) {
+      alert("Microphone Handshake Failure: Ensure permissions are authorised.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setStatusText('');
+    }
+  };
+
+  // Main Session Recording Logic
+  const startMainRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mainRecorderRef.current = mediaRecorder;
+      mainChunksRef.current = [];
+      setRecordingSeconds(0);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) mainChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(mainChunksRef.current, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], `Live_Recording_${new Date().getTime()}.webm`, { type: 'audio/webm' });
+        setSelectedFile(audioFile);
+        stream.getTracks().forEach(track => track.stop());
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      };
+
+      mediaRecorder.start();
+      setIsRecordingMain(true);
+      timerIntervalRef.current = window.setInterval(() => {
+        setRecordingSeconds(s => s + 1);
+      }, 1000);
+    } catch (err) {
+      alert("Microphone Handshake Failure: Ensure permissions are authorised.");
+    }
+  };
+
+  const stopMainRecording = () => {
+    if (mainRecorderRef.current && mainRecorderRef.current.state !== 'inactive') {
+      mainRecorderRef.current.stop();
+      setIsRecordingMain(false);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleChatUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -256,6 +363,26 @@ startxref
     }
   };
 
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const onDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && (file.type.startsWith('audio/') || file.type.startsWith('video/'))) {
+      setSelectedFile(file);
+    } else {
+      alert("Forensic Rejection: Only audio or video assets are authorised for this gateway.");
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto pb-20">
       {/* HEADER & INPUT ENGINE */}
@@ -276,11 +403,14 @@ startxref
 
           <form onSubmit={handleTranscribe} className="space-y-6">
             <div className="flex gap-4 p-2 bg-slate-100 rounded-2xl w-fit">
-              {(['youtube', 'audio', 'video'] as const).map(type => (
+              {(['youtube', 'audio', 'video', 'record'] as const).map(type => (
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setFileType(type)}
+                  onClick={() => {
+                    setFileType(type);
+                    if (type === 'youtube' || type === 'record') setSelectedFile(null);
+                  }}
                   className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                     fileType === type ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
@@ -297,17 +427,126 @@ startxref
                   className="md:col-span-2 w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:border-indigo-600 outline-none transition-all text-lg font-medium"
                   placeholder="Input YouTube Endpoint URL (e.g. https://www.youtube.com/watch?v=...)"
                 />
+              ) : fileType === 'record' ? (
+                <div className="md:col-span-2 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] p-12 flex flex-col items-center justify-center text-center space-y-6">
+                  {isRecordingMain ? (
+                    <div className="space-y-6 animate-pulse">
+                      <div className="w-24 h-24 bg-rose-600 text-white rounded-full flex items-center justify-center text-3xl mx-auto shadow-[0_0_30px_#e11d48]">
+                        🎙️
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="text-4xl font-mono font-black text-slate-900">{formatTime(recordingSeconds)}</h4>
+                        <p className="text-[10px] text-rose-600 font-bold uppercase tracking-widest">Capturing Verbatim Audio...</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={stopMainRecording}
+                        className="px-12 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all"
+                      >
+                        Terminate Recording
+                      </button>
+                    </div>
+                  ) : selectedFile ? (
+                    <div className="space-y-4 animate-in zoom-in duration-300">
+                      <div className="w-20 h-20 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-xl">
+                        ✅
+                      </div>
+                      <div className="space-y-1">
+                        <h5 className="text-xl font-black text-slate-900">Vocal Asset Prepared</h5>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Duration: {formatTime(recordingSeconds)} • Signed Archive Buffer</p>
+                      </div>
+                      <div className="flex gap-4 justify-center pt-2">
+                        <button 
+                          type="button"
+                          onClick={startMainRecording}
+                          className="px-8 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 transition-colors"
+                        >
+                          Rerecord
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setSelectedFile(null)}
+                          className="px-8 py-3 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase hover:bg-rose-100 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="w-20 h-20 bg-slate-200 text-slate-400 rounded-2xl flex items-center justify-center text-3xl mx-auto">
+                        ⏺️
+                      </div>
+                      <div className="space-y-2">
+                        <h5 className="text-xl font-black text-slate-900">Ready for Live Capture</h5>
+                        <p className="text-sm text-slate-500 font-medium max-w-sm mx-auto">Ensure you are in a low-noise environment for forensic-grade verbatim results.</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={startMainRecording}
+                        className="px-12 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95"
+                      >
+                        Start Live Handshake
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
-                <div className="md:col-span-2 group">
+                <div 
+                  onDragOver={onDragOver}
+                  onDragLeave={onDragLeave}
+                  onDrop={onDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`md:col-span-2 group relative border-4 border-dashed rounded-[2.5rem] transition-all cursor-pointer p-12 flex flex-col items-center justify-center text-center space-y-4 ${
+                    isDragging ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 bg-slate-50 hover:border-indigo-200'
+                  }`}
+                >
                   <input 
-                    type="file" ref={fileInputRef} onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                    className="w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl file:bg-slate-900 file:text-white file:rounded-full file:border-0 file:px-6 file:py-2 file:mr-6 file:font-black file:text-[10px] cursor-pointer group-hover:border-indigo-200 transition-colors"
+                    type="file" 
+                    ref={fileInputRef} 
+                    hidden 
+                    accept="audio/*,video/*"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   />
+                  
+                  {selectedFile ? (
+                    <div className="space-y-2 animate-in fade-in zoom-in duration-300">
+                      <div className="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-xl">
+                        {selectedFile.type.startsWith('video') ? '🎬' : '🎵'}
+                      </div>
+                      <h5 className="text-xl font-black text-slate-900 truncate max-w-md">{selectedFile.name}</h5>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • {selectedFile.type || 'Authorised Asset'}
+                      </p>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+                        className="mt-4 px-6 py-2 bg-rose-50 text-rose-600 rounded-full text-[10px] font-black uppercase hover:bg-rose-100 transition-colors"
+                      >
+                        Eject Asset
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-16 h-16 bg-slate-200 text-slate-400 rounded-2xl flex items-center justify-center text-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                        📤
+                      </div>
+                      <div>
+                        <h5 className="text-xl font-black text-slate-900">Provision Local Asset</h5>
+                        <p className="text-sm text-slate-500 font-medium">Drag & Drop or click to browse for authorised audio/video files.</p>
+                      </div>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em]">Supported modallities: .mp3, .wav, .m4a, .mp4, .mov, .avi</p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
 
-            <button type="submit" disabled={loading} className="w-full py-6 rounded-3xl font-black text-white bg-indigo-600 hover:bg-indigo-700 uppercase tracking-widest text-sm shadow-xl active:scale-[0.99] transition-all disabled:opacity-50">
+            <button 
+              type="submit" 
+              disabled={loading || (fileType === 'youtube' ? !url : !selectedFile) || isRecordingMain} 
+              className="w-full py-6 rounded-3xl font-black text-white bg-indigo-600 hover:bg-indigo-700 uppercase tracking-widest text-sm shadow-xl active:scale-[0.99] transition-all disabled:opacity-50 disabled:bg-slate-300"
+            >
               {loading ? 'Initialising Extraction Protocol...' : `Run ${fileType.toUpperCase()} Command`}
             </button>
           </form>
@@ -380,18 +619,18 @@ startxref
                 </div>
               ))}
               
-              {/* iMessage Typing Indicator */}
+              {/* Refined iMessage Typing Indicator */}
               {isAiTyping && (
-                <div className="flex justify-start animate-in fade-in duration-300">
-                  <div className="bg-slate-800 p-4 rounded-[2rem] rounded-tl-none border border-slate-700 flex gap-1 items-center shadow-lg">
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></div>
+                <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="bg-slate-800 p-5 rounded-[2.2rem] rounded-tl-none border border-slate-700/50 flex gap-1.5 items-center shadow-2xl relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-indigo-500/5 animate-pulse pointer-events-none"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite_-0.3s]"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite_-0.15s]"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite]"></div>
                   </div>
                 </div>
               )}
 
-              {/* Granular Encryption Progress Feedback */}
               {encryptionProgress > 0 && (
                 <div className="flex flex-col gap-3 p-4 bg-black/20 rounded-3xl border border-white/5 animate-in fade-in duration-300">
                   <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em]">
@@ -409,27 +648,40 @@ startxref
               <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={handleChat} className="flex gap-4 relative z-10">
+            <form onSubmit={handleChat} className="flex gap-4 relative z-10 items-center">
               <input type="file" hidden ref={chatFileRef} onChange={handleChatUpload} />
-              <button 
-                type="button" 
-                onClick={() => chatFileRef.current?.click()}
-                disabled={!transcription || chatLoading}
-                className="w-14 h-14 bg-slate-800 text-white rounded-2xl flex items-center justify-center hover:bg-slate-700 transition-all shadow-lg active:scale-90 disabled:opacity-20"
-                title="Inject Contextual Asset"
-              >
-                <span className="text-xl">📎</span>
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => chatFileRef.current?.click()}
+                  disabled={!transcription || chatLoading}
+                  className="w-14 h-14 bg-slate-800 text-white rounded-2xl flex items-center justify-center hover:bg-slate-700 transition-all shadow-lg active:scale-90 disabled:opacity-20"
+                  title="Inject Contextual Asset"
+                >
+                  <span className="text-xl">📎</span>
+                </button>
+                <button 
+                  type="button" 
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={!transcription || chatLoading}
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90 disabled:opacity-20 ${
+                    isRecording ? 'bg-rose-600 text-white animate-pulse shadow-[0_0_15px_#e11d48]' : 'bg-slate-800 text-white hover:bg-slate-700'
+                  }`}
+                  title={isRecording ? "Terminate Vocal Command" : "Establish Vocal Handshake"}
+                >
+                  <span className="text-xl">{isRecording ? '⏹️' : '🎙️'}</span>
+                </button>
+              </div>
               <div className="flex-1 relative">
                 <input 
-                  disabled={!transcription || chatLoading}
+                  disabled={!transcription || chatLoading || isRecording}
                   value={chatQuestion} onChange={(e) => setChatQuestion(e.target.value)}
-                  placeholder={transcription ? "Analyse data in secure context..." : "Locked until data ingestion..."}
+                  placeholder={isRecording ? "Listening for vocal command..." : transcription ? "Analyse data in secure context..." : "Locked until data ingestion..."}
                   className="w-full h-14 px-8 bg-black/50 border-2 border-slate-700 rounded-2xl text-white font-medium outline-none focus:border-indigo-600 transition-all placeholder:text-slate-600 disabled:cursor-not-allowed"
                 />
                 <button 
                   type="submit" 
-                  disabled={!transcription || chatLoading || !chatQuestion}
+                  disabled={!transcription || chatLoading || !chatQuestion || isRecording}
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center hover:scale-105 transition-transform shadow-lg disabled:opacity-0"
                 >
                   ➜

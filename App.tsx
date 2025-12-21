@@ -25,6 +25,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isExiting, setIsExiting] = useState<boolean>(false);
+  const [atomTime, setAtomTime] = useState<string>(new Date().toLocaleTimeString('en-GB', { hour12: false }));
   
   // Gate States
   const [gateChoice, setGateChoice] = useState<'NONE' | 'ACCEPT' | 'DECLINE'>('NONE');
@@ -33,6 +34,14 @@ const App: React.FC = () => {
   useEffect(() => {
     const storedAgreement = localStorage.getItem('wright_agreed');
     if (storedAgreement === 'true') setAgreed(true);
+  }, []);
+
+  // Atom Time Tick
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAtomTime(new Date().toLocaleTimeString('en-GB', { hour12: false }));
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleAction = () => {
@@ -164,9 +173,13 @@ const App: React.FC = () => {
       />
       <main className="flex-1 overflow-y-auto p-12 relative">
         <header className="flex justify-between items-center mb-10">
-          <div>
-            <h2 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">{activeTab.replace('profile', 'My Identity')}</h2>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic">{APP_TITLE}</h1>
+          <div className="flex flex-col items-start">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-1">19th February 2025</p>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic leading-none">{APP_TITLE}</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></span>
+              <p className="text-[11px] font-mono font-bold text-indigo-600 tracking-widest uppercase">Atom Time: {atomTime}</p>
+            </div>
           </div>
           <div className="flex items-center gap-5">
             <div className="text-right">
