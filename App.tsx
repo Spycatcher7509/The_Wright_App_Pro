@@ -100,7 +100,7 @@ const App: React.FC = () => {
                <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${gateChoice === 'DECLINE' ? 'bg-rose-50 border-rose-600' : 'bg-white border-slate-100 hover:border-rose-100'}`}>
                   <input 
                     type="radio" 
-                    name="radio" 
+                    name="gate" 
                     className="w-5 h-5 text-rose-600 focus:ring-0" 
                     checked={gateChoice === 'DECLINE'}
                     onChange={() => setGateChoice('DECLINE')}

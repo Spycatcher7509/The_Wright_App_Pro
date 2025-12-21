@@ -621,12 +621,12 @@ startxref
               
               {/* Refined iMessage Typing Indicator */}
               {isAiTyping && (
-                <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="bg-slate-800/80 backdrop-blur-md p-5 rounded-[2.2rem] rounded-tl-none border border-white/5 flex gap-1.5 items-center shadow-[0_10px_40px_rgba(0,0,0,0.5)] relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 to-transparent animate-pulse pointer-events-none"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite_-0.3s] shadow-[0_0_8px_rgba(148,163,184,0.3)]"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite_-0.15s] shadow-[0_0_8px_rgba(148,163,184,0.3)]"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite] shadow-[0_0_8px_rgba(148,163,184,0.3)]"></div>
+                <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="bg-slate-800/90 backdrop-blur-lg p-5 rounded-[2.2rem] rounded-tl-none border border-white/10 flex gap-2 items-center shadow-[0_20px_60px_rgba(0,0,0,0.6)] relative overflow-hidden group scale-100 transition-transform">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-transparent animate-pulse pointer-events-none"></div>
+                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-[bounce_1s_infinite_-0.4s] shadow-[0_0_12px_rgba(199,210,254,0.5)]"></div>
+                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-[bounce_1s_infinite_-0.2s] shadow-[0_0_12px_rgba(199,210,254,0.5)]"></div>
+                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-[bounce_1s_infinite] shadow-[0_0_12px_rgba(199,210,254,0.5)]"></div>
                   </div>
                 </div>
               )}
