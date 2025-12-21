@@ -8,6 +8,7 @@ import { DBService } from './services/dbService';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import TranscriptionHub from './components/TranscriptionHub';
+import VoiceHub from './components/VoiceHub';
 import GlobalIntercom from './components/GlobalIntercom';
 import LogViewer from './components/LogViewer';
 import TicketViewer from './components/TicketViewer';
@@ -89,6 +90,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard user={user} />;
       case 'transcribe': return <TranscriptionHub user={user} />;
+      case 'voice': return <VoiceHub user={user} />;
       case 'intercom': return <GlobalIntercom user={user} />;
       case 'logs': return <LogViewer />;
       case 'tickets': return <TicketViewer />;

@@ -12,18 +12,36 @@ export class GeminiService {
   private static readonly GB_INSTRUCTION = "CRITICAL: You must use British English (GB) spelling at all times (e.g., 'initialise', 'programme', 'colour', 'centre', 'authorised'). All dates must be in DD/MM/YYYY format. All times must be in 24-hour format.";
 
   static async transcribeFile(file: File): Promise<string> {
-    // For a world-class experience, we attempt to read the file if it's text-based or small, 
-    // but the engine prompt is the primary controller here.
+    // Read file as base64 for proper ingestion
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
     const response = await this.ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `${this.GB_INSTRUCTION}
-                 Perform a STRICT VERBATIM, word-for-word transcription of the following asset. 
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                data: base64,
+                mimeType: file.type
+              }
+            },
+            {
+              text: `${this.GB_INSTRUCTION}
+                 Perform a STRICT VERBATIM, word-for-word transcription of the provided audio/video asset. 
                  Do NOT summarise. Do NOT omit filler words if they are present in the source logic.
                  Asset Name: ${file.name}
-                 Asset Size: ${file.size} bytes
-                 Asset Type: ${file.type}
                  
-                 Provide the verbatim stream with forensic precision, maintaining all original formatting and structural line breaks.`,
+                 Provide the verbatim stream with forensic precision, maintaining all original formatting and structural line breaks.`
+            }
+          ]
+        }
+      ],
       config: {
         thinkingConfig: { thinkingBudget: 32768 }
       }
