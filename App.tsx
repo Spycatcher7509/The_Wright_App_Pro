@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isExiting, setIsExiting] = useState<boolean>(false);
   const [atomTime, setAtomTime] = useState<string>(new Date().toLocaleTimeString('en-GB', { hour12: false }));
+  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
   
   // Gate States
   const [gateChoice, setGateChoice] = useState<'NONE' | 'ACCEPT' | 'DECLINE'>('NONE');
@@ -34,9 +35,17 @@ const App: React.FC = () => {
   useEffect(() => {
     const storedAgreement = localStorage.getItem('wright_agreed');
     if (storedAgreement === 'true') setAgreed(true);
+    
+    // Check for API Key Bridge availability
+    const checkKey = async () => {
+      if (window.aistudio) {
+        const selected = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(selected);
+      }
+    };
+    checkKey();
   }, []);
 
-  // Atom Time Tick
   useEffect(() => {
     const timer = setInterval(() => {
       setAtomTime(new Date().toLocaleTimeString('en-GB', { hour12: false }));
@@ -46,7 +55,6 @@ const App: React.FC = () => {
 
   const handleAction = () => {
     if (!isTicked) return;
-
     if (gateChoice === 'ACCEPT') {
       localStorage.setItem('wright_agreed', 'true');
       setAgreed(true);
@@ -58,12 +66,43 @@ const App: React.FC = () => {
     }
   };
 
+  const handleKeyBridge = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      setHasApiKey(true); // Proceed to app after trigger
+    }
+  };
+
   if (isExiting) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-950 text-white font-serif">
         <div className="text-center space-y-6 animate-pulse">
           <h1 className="text-4xl font-black italic tracking-tighter">See you next time?</h1>
           <p className="text-slate-500 text-[10px] uppercase tracking-[0.4em]">Connection Terminated by Client</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Mandatory Key Selection for Pro Features
+  if (agreed && !hasApiKey && window.aistudio) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white rounded-[3rem] shadow-2xl max-w-md w-full p-12 text-center space-y-8 border border-slate-200">
+          <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center font-bold text-white text-3xl mx-auto shadow-xl">V</div>
+          <div className="space-y-3">
+            <h2 className="text-2xl font-black text-slate-900 italic tracking-tighter">Secure Vault Handshake</h2>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              To utilise Gemini 3 Pro and Native Voice engines, you must select an authorised API key from a paid GCP project.
+            </p>
+            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-[10px] text-indigo-600 font-black uppercase hover:underline">View Billing Documentation</a>
+          </div>
+          <button 
+            onClick={handleKeyBridge}
+            className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-xl"
+          >
+            Connect Secure Vault
+          </button>
         </div>
       </div>
     );
@@ -170,21 +209,17 @@ const App: React.FC = () => {
         setActiveTab={setActiveTab} 
         user={user} 
         onLogout={() => setUser(null)}
+        hasApiKey={hasApiKey}
       />
       <main className="flex-1 overflow-y-auto p-12 relative">
         <header className="flex flex-col items-center mb-16 text-center">
           <div className="space-y-3">
-            {/* The Date: Profound Tracking */}
             <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.6em] animate-in fade-in slide-in-from-top duration-1000">
               19th February 2025
             </p>
-            
-            {/* The App Title: Impactful & Elegant */}
             <h1 className="text-6xl font-black text-slate-900 tracking-tighter italic leading-none drop-shadow-sm selection:bg-indigo-600 selection:text-white">
               {APP_TITLE}
             </h1>
-            
-            {/* Atom Time: High-Tech Capsule */}
             <div className="flex items-center justify-center gap-3 pt-2">
               <div className="flex items-center gap-3 px-6 py-2.5 bg-white rounded-full border border-slate-200 shadow-sm shadow-indigo-100/50 transition-all hover:border-indigo-200">
                 <span className="relative flex h-2 w-2">
@@ -198,7 +233,6 @@ const App: React.FC = () => {
             </div>
           </div>
         </header>
-
         {renderContent()}
       </main>
     </div>

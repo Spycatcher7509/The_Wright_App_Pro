@@ -7,9 +7,10 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   user: User;
   onLogout: () => void;
+  hasApiKey?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout, hasApiKey }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'profile', label: 'My Identity', icon: '👤' },
@@ -41,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
           <span className="font-bold text-white tracking-tight italic">Wright_App_pro</span>
         </div>
         
-        <nav className="space-y-1 overflow-y-auto custom-scrollbar flex-1 pr-1" style={{maxHeight: 'calc(100vh - 350px)'}}>
+        <nav className="space-y-1 overflow-y-auto custom-scrollbar flex-1 pr-1" style={{maxHeight: 'calc(100vh - 380px)'}}>
           {filteredMenu.map((item) => (
             <button
               key={item.id}
@@ -59,8 +60,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
         </nav>
       </div>
 
-      <div className="mt-auto p-6 border-t border-slate-800">
-        <div className="bg-slate-800/50 rounded-xl p-4 mb-4 border border-slate-700/50">
+      <div className="mt-auto p-6 border-t border-slate-800 space-y-4">
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Vault Link Status</p>
+          <div className={`flex items-center gap-2 text-xs font-bold ${hasApiKey ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
+            <span className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+            {hasApiKey ? 'TUNNEL_ENCRYPTED' : 'KEY_NOT_SELECTED'}
+          </div>
+        </div>
+        
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
           <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Intercom Status</p>
           <div className="flex items-center gap-2 text-xs text-green-400 font-bold">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
