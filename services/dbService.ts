@@ -1,17 +1,35 @@
 
-import { LogEntry, Ticket, BackupRecord, User } from '../types';
+import { LogEntry, Ticket, BackupRecord, User, ChatMessage } from '../types';
 import { GB_DATE_OPTIONS } from '../constants';
 
 const STORAGE_KEYS = {
   LOGS: 'wright_logs_db',
   TICKETS: 'wright_tickets_db',
   BACKUPS: 'wright_backups_db',
-  USERS: 'wright_users_db'
+  USERS: 'wright_users_db',
+  CHAT: 'wright_intercom_db'
 };
 
 export class DBService {
   private static getNow(): string {
     return new Date().toLocaleString('en-GB', GB_DATE_OPTIONS);
+  }
+
+  // --- INTERCOM / MESSAGING ---
+  static async getMessages(): Promise<ChatMessage[]> {
+    const data = localStorage.getItem(STORAGE_KEYS.CHAT);
+    return data ? JSON.parse(data) : [];
+  }
+
+  static async sendMessage(msg: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<void> {
+    const messages = await this.getMessages();
+    const newMsg: ChatMessage = {
+      ...msg,
+      id: `MSG-${Date.now()}`,
+      timestamp: this.getNow()
+    };
+    messages.push(newMsg);
+    localStorage.setItem(STORAGE_KEYS.CHAT, JSON.stringify(messages));
   }
 
   // --- LOGS ---
@@ -74,7 +92,7 @@ export class DBService {
     localStorage.setItem(STORAGE_KEYS.BACKUPS, JSON.stringify(backups));
   }
 
-  // --- USERS (Admin Control) ---
+  // --- USERS ---
   static async getUsers(): Promise<User[]> {
     const data = localStorage.getItem(STORAGE_KEYS.USERS);
     if (!data) {
@@ -93,9 +111,7 @@ export class DBService {
   }
 
   static async saveUser(user: User): Promise<void> {
-    const data = localStorage.getItem(STORAGE_KEYS.USERS);
-    const users: User[] = data ? JSON.parse(data) : [];
-    
+    const users = await this.getUsers();
     const index = users.findIndex(u => u.id === user.id);
     if (index >= 0) {
       users[index] = user;

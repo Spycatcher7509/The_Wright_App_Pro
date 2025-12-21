@@ -13,6 +13,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'transcribe', label: 'Transcription Hub', icon: '🎙️' },
+    { id: 'intercom', label: 'Secure Intercom', icon: '📡' },
     { id: 'logs', label: 'View Logs', icon: '📜' },
     { id: 'tickets', label: 'View Tickets', icon: '🎫' },
     { id: 'support', label: 'Support Hub', icon: '📩' },
@@ -34,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
       <div className="p-6">
         <div className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">W</div>
-          <span className="font-bold text-white tracking-tight">Wright Engine</span>
+          <span className="font-bold text-white tracking-tight italic">Wright_App_pro</span>
         </div>
         
         <nav className="space-y-1">
@@ -57,10 +58,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
 
       <div className="mt-auto p-6 border-t border-slate-800">
         <div className="bg-slate-800/50 rounded-xl p-4 mb-4 border border-slate-700/50">
-          <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Backup Readiness</p>
+          <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Intercom Status</p>
           <div className="flex items-center gap-2 text-xs text-green-400 font-bold">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-            SYNCED
+            GATEWAY_OPEN
           </div>
         </div>
         <button 

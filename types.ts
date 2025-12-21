@@ -6,16 +6,31 @@ export interface User {
   email: string;
   role: UserRole;
   isFirstLogin: boolean;
-  avatar?: string; // Base64 or URL
+  avatar?: string;
   name?: string;
 }
 
 export type ExportFormat = 'pdf' | 'md' | 'html' | 'text' | 'json';
 export type MediaFormat = 'm4a' | 'mp3' | 'av1' | 'mp4';
 
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  text: string;
+  timestamp: string;
+  hash: string;
+  file?: {
+    name: string;
+    size: number;
+    type: string;
+    data: string; // Base64
+  };
+}
+
 export interface LogEntry {
   id: string;
-  timestamp: string; // GBFormat
+  timestamp: string;
   title: string;
   checksum: string;
   absolutePath: string;
@@ -24,7 +39,7 @@ export interface LogEntry {
 }
 
 export interface Ticket {
-  id: string; // Alphanumerical sequential e.g. TKT-001
+  id: string;
   timestamp: string;
   subject: string;
   description: string;

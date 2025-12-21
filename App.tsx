@@ -8,6 +8,7 @@ import { DBService } from './services/dbService';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import TranscriptionHub from './components/TranscriptionHub';
+import GlobalIntercom from './components/GlobalIntercom';
 import LogViewer from './components/LogViewer';
 import TicketViewer from './components/TicketViewer';
 import SupportForm from './components/SupportForm';
@@ -56,7 +57,7 @@ const App: React.FC = () => {
         <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-10 overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-white text-xl">W</div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{APP_TITLE}</h1>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight italic">The_Wright_App_pro</h1>
           </div>
           <div className="flex-1 overflow-y-auto mb-8 pr-2 text-sm leading-relaxed whitespace-pre-wrap text-slate-700 bg-slate-50 p-6 rounded-2xl border border-slate-100 font-medium italic">
             {INDEMNITY_STATEMENT}
@@ -88,6 +89,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard user={user} />;
       case 'transcribe': return <TranscriptionHub user={user} />;
+      case 'intercom': return <GlobalIntercom user={user} />;
       case 'logs': return <LogViewer />;
       case 'tickets': return <TicketViewer />;
       case 'support': return <SupportForm user={user} />;
@@ -110,7 +112,7 @@ const App: React.FC = () => {
         <header className="flex justify-between items-center mb-10">
           <div>
             <h2 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">{activeTab}</h2>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter">{APP_TITLE}</h1>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic">{APP_TITLE}</h1>
           </div>
           <div className="flex items-center gap-5">
             <div className="text-right">

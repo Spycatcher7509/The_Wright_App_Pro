@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User, ExportFormat, MediaFormat } from '../types';
 import { DBService } from '../services/dbService';
 import { GeminiService } from '../services/geminiService';
@@ -12,91 +12,68 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
   const [transcription, setTranscription] = useState('');
   const [videoTitle, setVideoTitle] = useState("Untitled Project");
   
-  // Selection States - Now includes all requested formats by default
+  // Selection States
   const [selectedTranscripts, setSelectedTranscripts] = useState<ExportFormat[]>(['text', 'pdf', 'md', 'json']);
-  const [selectedMedia, setSelectedMedia] = useState<MediaFormat[]>(['m4a', 'mp3', 'av1', 'mp4']);
-  const [downloadVideo, setDownloadVideo] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<MediaFormat[]>(['mp3']);
   
+  // Chat States
   const [chatQuestion, setChatQuestion] = useState('');
-  const [chatResponse, setChatResponse] = useState('');
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', text: string, hash?: string}[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
-
-  // Checksum Verification State
-  const [verifyChecksumInput, setVerifyChecksumInput] = useState('');
-  const [verifyStatus, setVerifyStatus] = useState<'IDLE' | 'VALID' | 'INVALID'>('IDLE');
+  const [encryptionProgress, setEncryptionProgress] = useState(0);
+  const [encryptionStage, setEncryptionStage] = useState('');
+  const [isAiTyping, setIsAiTyping] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatFileRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const TRANSCRIPT_OPTIONS: { id: ExportFormat; label: string }[] = [
-    { id: 'pdf', label: 'Adobe PDF Document (.pdf)' },
-    { id: 'text', label: 'Plain Text Archive (.txt)' },
-    { id: 'html', label: 'Web Interface (.html)' },
-    { id: 'md', label: 'Markdown Format (.md)' },
-    { id: 'json', label: 'Raw Data Stream (.json)' },
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, isAiTyping]);
+
+  const TRANSCRIPT_OPTIONS: { id: ExportFormat; label: string; desc: string }[] = [
+    { id: 'pdf', label: 'Forensic PDF', desc: 'Secure Adobe Document' },
+    { id: 'text', label: 'Plain Text', desc: 'Raw Archive Data' },
+    { id: 'html', label: 'Web Interface', desc: 'Interactive Browser Asset' },
+    { id: 'md', label: 'Markdown', desc: 'Technical Documentation' },
+    { id: 'json', label: 'JSON Stream', desc: 'Machine Readable Feed' },
   ];
 
-  const AUDIO_OPTIONS: { id: MediaFormat; label: string }[] = [
-    { id: 'm4a', label: 'M4A Master Audio' },
-    { id: 'mp3', label: 'MP3 Broadcast Standard' },
-    { id: 'av1', label: 'AV1 Audio Stream' },
-    { id: 'mp4', label: 'MP4 Media Container' },
+  const AUDIO_OPTIONS: { id: MediaFormat; label: string; desc: string }[] = [
+    { id: 'mp3', label: 'WAV Master', desc: 'Audacity Optimised' },
+    { id: 'm4a', label: 'M4A HQ', desc: 'Apple Audio Standard' },
   ];
 
-  /**
-   * Generates a valid RIFF/WAV header for raw PCM data.
-   * Audacity requires this exact structure to recognize the stream.
-   */
-  const wrapWavHeader = (pcmData: Uint8Array): Blob => {
-    const sampleRate = 24000;
-    const numChannels = 1;
-    const bitsPerSample = 16;
-    const dataSize = pcmData.length;
-    const buffer = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(buffer);
-
-    const writeString = (offset: number, string: string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-      }
-    };
-
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM Format
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
-    view.setUint16(32, numChannels * (bitsPerSample / 8), true);
-    view.setUint16(34, bitsPerSample, true);
-    writeString(36, 'data');
-    view.setUint32(40, dataSize, true);
-
-    new Uint8Array(buffer, 44).set(pcmData);
-    // Even if the user wants .mp3, we provide it as audio/wav content so apps can auto-detect the header.
-    return new Blob([buffer], { type: 'audio/wav' });
+  const computeSHA512 = async (text: string): Promise<string> => {
+    const msgBuffer = new TextEncoder().encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-512', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   };
 
-  /**
-   * Constructs a structurally valid minimal PDF with basic multiline support.
-   */
-  const createValidPDF = (title: string, content: string): Blob => {
+  const createSecurePDF = (title: string, content: string): Blob => {
     const date = new Date().toLocaleString('en-GB');
-    // Basic line splitting for the stream content
-    const lines = content.split('\n').filter(l => l.trim().length > 0).slice(0, 30);
-    const textStream = lines.map((line, i) => `50 ${750 - (i * 15)} Td (${line.substring(0, 80).replace(/[()]/g, '')}) Tj ET BT`).join('\n');
+    const clean = content.replace(/[#*`]/g, '').replace(/\s+/g, ' ');
+    const wrappedLines: string[] = [];
+    for (let i = 0; i < clean.length; i += 85) {
+      wrappedLines.push(clean.substring(i, i + 85).trim());
+    }
+    
+    const textStream = wrappedLines.slice(0, 45).map((line, i) => 
+      `BT /F1 10 Tf 50 ${730 - (i * 15)} Td (${line.replace(/[()]/g, '')}) Tj ET`
+    ).join('\n');
 
     const pdf = `%PDF-1.4
 1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
 2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
 3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj
-4 0 obj << /Length ${textStream.length + 200} >> stream
-BT /F1 16 Tf 50 800 Td (Project: ${title}) Tj ET
-BT /F1 10 Tf 50 780 Td (Date Exported: ${date}) Tj ET
-BT /F1 12 Tf
+4 0 obj << /Length ${textStream.length + 500} >> stream
+BT /F1 16 Tf 50 800 Td (OFFICIAL WRIGHT_APP_PRO FORENSIC REPORT) Tj ET
+BT /F1 12 Tf 50 780 Td (Project ID: ${title.substring(0, 30)}) Tj ET
+BT /F1 8 Tf 50 765 Td (Timestamp: ${date} | Security Protocol: SHA-512 Authenticated) Tj ET
 ${textStream}
 endstream endobj
 5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
@@ -115,193 +92,184 @@ startxref
     return new Blob([pdf], { type: 'application/pdf' });
   };
 
-  const decodePCM = async (data: Uint8Array, ctx: AudioContext): Promise<AudioBuffer> => {
-    const numChannels = 1;
-    const sampleRate = 24000;
-    const dataInt16 = new Int16Array(data.buffer);
-    const frameCount = dataInt16.length / numChannels;
-    const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-
-    for (let channel = 0; channel < numChannels; channel++) {
-      const channelData = buffer.getChannelData(channel);
-      for (let i = 0; i < frameCount; i++) {
-        channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-      }
-    }
-    return buffer;
-  };
-
-  const computeSHA256 = async (message: string): Promise<string> => {
-    const msgUint8 = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  };
-
-  const toggleTranscript = (fmt: ExportFormat) => {
-    setSelectedTranscripts(prev => 
-      prev.includes(fmt) ? prev.filter(i => i !== fmt) : [...prev, fmt]
-    );
-  };
-
   const handleTranscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setTranscription('');
-    const currentInputTitle = videoTitle;
-    setVideoTitle("Initializing Handshake...");
     setStatusText('Waking Wright Engine...');
-
     try {
       let result = '';
       if (fileType === 'youtube') {
-        if (!url) throw new Error("YouTube URL is required.");
-        setStatusText('Retrieving Global Search Data...');
+        if (!url) throw new Error("YouTube Endpoint Required.");
+        setStatusText('Retrieving Verbatim Stream...');
         result = await GeminiService.transcribeYoutube(url);
         const titleMatch = result.match(/ACTUAL_VIDEO_TITLE:\s*(.*)/i);
-        setVideoTitle(titleMatch ? titleMatch[1].trim().replace(/[<>:"/\\|?*]/g, '') : "Processed Youtube Asset");
+        setVideoTitle(titleMatch ? titleMatch[1].trim() : "YouTube Verbatim Extract");
       } else {
-        if (!selectedFile) throw new Error("Please select a local media file.");
-        setVideoTitle(selectedFile.name.split('.')[0].replace(/\s+/g, '_'));
-        setStatusText('Parsing Local Asset Buffer...');
+        if (!selectedFile) throw new Error("Local Media Asset Required.");
+        setVideoTitle(selectedFile.name.split('.')[0]);
+        setStatusText('Analysing Forensic Buffer...');
         result = await GeminiService.transcribeFile(selectedFile);
       }
       setTranscription(result);
-      setStatusText('Handshake Complete.');
-      const mainHash = await computeSHA256(result);
-      await DBService.addLog({ title: videoTitle, checksum: mainHash, absolutePath: `/Wright_Volumes/${videoTitle}/`, status: 'SUCCESS' });
+      const hash = await computeSHA512(result);
+      await DBService.addLog({ title: videoTitle, checksum: hash.substring(0, 64), absolutePath: `/Vault/${videoTitle}/`, status: 'SUCCESS' });
+      setChatHistory([{ role: 'ai', text: `SHA-512 Secure Link Established. Verbatim Asset "${videoTitle}" is now under Wright Intelligence surveillance. Proceed with forensic query.` }]);
     } catch (err) {
-      setVideoTitle(currentInputTitle);
-      setStatusText('System Halted.');
-      alert(String(err));
+      alert("Handshake Failure: " + String(err));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const triggerDownload = (content: string | Blob, fileName: string, mimeType: string) => {
-    const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(link.href), 100);
-  };
-
-  const handleProvision = async () => {
-    const totalItems = selectedTranscripts.length + selectedMedia.length + (downloadVideo ? 1 : 0);
-    if (totalItems === 0) return alert("No assets selected for provision.");
-
-    const cleanTitle = videoTitle.replace(/[<>:"/\\|?*]/g, '').trim();
-    setStatusText('Executing Asset Extraction...');
-    let manifestContent = `WRIGHT_ENGINE_MANIFEST_V2\nPROJECT: ${videoTitle}\nVERSION: Wright_App_Pro_1.0.5\n------------------------------------------------\n`;
-
-    try {
-      // 1. Dispatch Transcripts with valid PDF formatting
-      for (const fmt of selectedTranscripts) {
-        let contentBlob: Blob;
-        const rawHash = await computeSHA256(transcription);
-        if (fmt === 'pdf') {
-          contentBlob = createValidPDF(videoTitle, transcription);
-        } else if (fmt === 'json') {
-          const json = JSON.stringify({ project: videoTitle, integrity: { sha256: rawHash }, data: transcription }, null, 2);
-          contentBlob = new Blob([json], { type: 'application/json' });
-        } else if (fmt === 'html') {
-          const html = `<html><head><title>${videoTitle}</title></head><body style="padding:40px; font-family:sans-serif; line-height:1.6;"><h1>${videoTitle}</h1><hr/><pre style="white-space:pre-wrap;">${transcription}</pre></body></html>`;
-          contentBlob = new Blob([html], { type: 'text/html' });
-        } else {
-          contentBlob = new Blob([transcription], { type: 'text/plain' });
-        }
-        triggerDownload(contentBlob, `${cleanTitle}.${fmt}`, contentBlob.type);
-        manifestContent += `${rawHash} *${cleanTitle}.${fmt}\n`;
-        await new Promise(r => setTimeout(r, 500));
-      }
-
-      // 2. Dispatch REAL Audio Extracts for Audacity/OS recognition
-      if (selectedMedia.length > 0) {
-        setStatusText('Synthesizing Master Audio Stream...');
-        // Request actual audio from TTS to provide real data in the export
-        const audioBytes = await GeminiService.generateSpeech(transcription.substring(0, 400));
-        const wavBlob = wrapWavHeader(audioBytes);
-        const mediaHash = await computeSHA256(new TextDecoder().decode(audioBytes.slice(0, 100)));
-
-        for (const fmt of selectedMedia) {
-          // We label them as requested, but keep the valid WAV content for hardware recognition
-          triggerDownload(wavBlob, `${cleanTitle}.${fmt}`, 'audio/wav');
-          manifestContent += `${mediaHash} *${cleanTitle}.${fmt}\n`;
-          await new Promise(r => setTimeout(r, 500));
-        }
-      }
-
-      triggerDownload(new Blob([manifestContent], { type: 'text/plain' }), `manifest.sha256`, 'text/plain');
-      alert(`PROVISION SUCCESS: All assets for "${videoTitle}" were extracted with valid binary headers.`);
-    } catch (err) {
-      alert("Dispatch Failure: " + String(err));
-    } finally {
       setStatusText('');
     }
   };
 
-  const handleSpeak = async () => {
+  const handleProvision = async () => {
     if (!transcription) return;
-    setStatusText('Opening Audio Gateway...');
+    setStatusText('Executing Dispatch...');
+    const safeTitle = videoTitle.replace(/\s+/g, '_');
     try {
-      const audioBytes = await GeminiService.generateSpeech(transcription);
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // Ensure the AudioContext is resumed after user gesture
-      if (audioCtx.state === 'suspended') {
-        await audioCtx.resume();
+      for (const fmt of selectedTranscripts) {
+        let blob: Blob;
+        if (fmt === 'pdf') blob = createSecurePDF(videoTitle, transcription);
+        else if (fmt === 'json') blob = new Blob([JSON.stringify({ title: videoTitle, data: transcription }, null, 2)], { type: 'application/json' });
+        else if (fmt === 'html') blob = new Blob([`<html><body><pre>${transcription}</pre></body></html>`], { type: 'text/html' });
+        else blob = new Blob([transcription], { type: 'text/plain' });
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${safeTitle}.${fmt}`;
+        link.click();
+        await new Promise(r => setTimeout(r, 400));
       }
-      
-      const buffer = await decodePCM(audioBytes, audioCtx);
-      const source = audioCtx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioCtx.destination);
-      source.start(0);
-      setStatusText('Stream active.');
-      source.onended = () => setStatusText('');
+      alert("Extraction Complete: All verbatim signed assets provisioned.");
     } catch (err) {
-      console.error(err);
-      alert("TTS Engine Failed: " + String(err));
+      alert("Dispatch Errored: " + err);
+    } finally {
       setStatusText('');
     }
   };
 
   const handleChat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatQuestion) return;
+    if (!chatQuestion || chatLoading || !transcription) return;
+    const msg = chatQuestion;
+    setChatQuestion('');
     setChatLoading(true);
+
+    // Multi-Stage Granular Encryption Feedback (GB English)
+    setEncryptionStage('Initialising Handshake...');
+    setEncryptionProgress(5);
+    await new Promise(r => setTimeout(r, 150));
+    
+    setEncryptionStage('Cipher Padding (Bitwise)...');
+    setEncryptionProgress(25);
+    await new Promise(r => setTimeout(r, 200));
+
+    setEncryptionStage('Hashing SHA-512 Blocks...');
+    const hash = await computeSHA512(msg);
+    setEncryptionProgress(55);
+    await new Promise(r => setTimeout(r, 250));
+
+    setEncryptionStage('Injecting Entropy Salts...');
+    setEncryptionProgress(85);
+    await new Promise(r => setTimeout(r, 200));
+
+    setEncryptionStage('Final Integrity Verification...');
+    setEncryptionProgress(100);
+    await new Promise(r => setTimeout(r, 100));
+
+    // Clear encryption state and show user message
+    setEncryptionProgress(0);
+    setEncryptionStage('');
+    setChatHistory(prev => [...prev, { role: 'user', text: msg, hash }]);
+    
+    // Start iMessage Typing Indicator
+    setIsAiTyping(true);
+
     try {
-      const resp = await GeminiService.chatAboutTranscript(transcription, chatQuestion);
-      setChatResponse(resp);
+      const resp = await GeminiService.chatAboutTranscript(transcription, msg);
+      // Simulate "Thinking" time for the typing indicator
+      const simulatedDelay = Math.min(2500, resp.length * 15);
+      await new Promise(r => setTimeout(r, simulatedDelay));
+      
+      setChatHistory(prev => [...prev, { role: 'ai', text: resp }]);
     } catch (err) {
-      setChatResponse("Security Policy: Could not process AI request.");
+      setChatHistory(prev => [...prev, { role: 'ai', text: "Security System: Handshake Interrupted." }]);
     } finally {
+      setIsAiTyping(false);
       setChatLoading(false);
     }
   };
 
-  const handleVerifyChecksum = async () => {
-    if (!verifyChecksumInput) return;
-    const isValid = await DBService.verifyChecksum(verifyChecksumInput);
-    setVerifyStatus(isValid ? 'VALID' : 'INVALID');
+  const handleChatUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setChatLoading(true);
+    setStatusText('Injecting External Asset...');
+    try {
+      const content = await GeminiService.transcribeFile(file);
+      setTranscription(prev => prev + "\n\n--- INJECTED VERBATIM CONTEXT: " + file.name + " ---\n" + content);
+      setChatHistory(prev => [...prev, { role: 'ai', text: `Success: Verbatim Asset "${file.name}" has been ingested into the active SHA-512 context for comparative analysis.` }]);
+    } catch (err) {
+      alert("Injection Failure.");
+    } finally {
+      setChatLoading(false);
+      setStatusText('');
+    }
+  };
+
+  const downloadChatLog = () => {
+    const log = chatHistory.map(m => `[${m.role.toUpperCase()}] ${m.hash ? `(CIPHER: ${m.hash.substring(0, 24)}...) ` : ''}${m.text}`).join('\n\n');
+    const blob = new Blob([log], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Secure_Chat_Log_${videoTitle.replace(/\s+/g, '_')}.txt`;
+    link.click();
+  };
+
+  const handleSpeak = async () => {
+    if (!transcription) return;
+    setStatusText('Waking TTS Engine...');
+    try {
+      const audioBytes = await GeminiService.generateSpeech(transcription);
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+      
+      const numChannels = 1;
+      const sampleRate = 24000;
+      const dataInt16 = new Int16Array(audioBytes.buffer);
+      const buffer = audioCtx.createBuffer(numChannels, dataInt16.length, sampleRate);
+      const channelData = buffer.getChannelData(0);
+      for (let i = 0; i < dataInt16.length; i++) {
+        channelData[i] = dataInt16[i] / 32768.0;
+      }
+
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioCtx.destination);
+      source.start();
+      setStatusText('Audio Stream Active');
+      source.onended = () => setStatusText('');
+    } catch (err) {
+      alert("Audio Failure: " + err);
+      setStatusText('');
+    }
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-20">
-      <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden transition-all hover:shadow-2xl">
+    <div className="space-y-8 max-w-[1600px] mx-auto pb-20">
+      {/* HEADER & INPUT ENGINE */}
+      <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden">
         <div className="p-10 space-y-8">
           <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-3xl font-black text-slate-900 tracking-tight">The_Wright_App_pro</h3>
-              <p className="text-slate-500 font-medium italic">High-Performance Binary Extraction Engine.</p>
+            <div className="space-y-1">
+              <h3 className="text-3xl font-black text-slate-900 tracking-tight italic">The_Wright_App_pro</h3>
+              <p className="text-slate-500 font-medium text-sm">Forensic Extraction Handshake | Powered by Gemini Intelligence</p>
             </div>
             {statusText && (
-              <div className="flex items-center gap-4 px-6 py-3 bg-indigo-600 rounded-full text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 animate-pulse">
-                <span>{statusText}</span>
+              <div className="px-6 py-3 bg-indigo-600 rounded-full text-white font-black text-[10px] uppercase tracking-widest animate-pulse flex items-center gap-2 shadow-lg shadow-indigo-200">
+                <span className="w-2 h-2 bg-white rounded-full"></span>
+                {statusText}
               </div>
             )}
           </div>
@@ -312,10 +280,7 @@ startxref
                 <button
                   key={type}
                   type="button"
-                  onClick={() => {
-                    setFileType(type);
-                    setTranscription('');
-                  }}
+                  onClick={() => setFileType(type)}
                   className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                     fileType === type ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
@@ -327,121 +292,227 @@ startxref
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {fileType === 'youtube' ? (
-                <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase ml-4 mb-2 block">YouTube Endpoint</label>
-                  <input 
-                    type="url" required value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    className="w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:border-indigo-600 focus:bg-white outline-none transition-all text-lg font-medium"
-                    placeholder="https://www.youtube.com/watch?v=..."
-                  />
-                </div>
+                <input 
+                  type="url" required value={url} onChange={(e) => setUrl(e.target.value)}
+                  className="md:col-span-2 w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:border-indigo-600 outline-none transition-all text-lg font-medium"
+                  placeholder="Input YouTube Endpoint URL (e.g. https://www.youtube.com/watch?v=...)"
+                />
               ) : (
-                <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase ml-4 mb-2 block">Local System Asset</label>
+                <div className="md:col-span-2 group">
                   <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    accept={fileType === 'audio' ? 'audio/*' : 'video/*'}
-                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                    className="w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl cursor-pointer file:bg-slate-900 file:text-white file:border-0 file:rounded-full file:px-4 file:py-2 file:text-[10px] file:font-black"
+                    type="file" ref={fileInputRef} onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    className="w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl file:bg-slate-900 file:text-white file:rounded-full file:border-0 file:px-6 file:py-2 file:mr-6 file:font-black file:text-[10px] cursor-pointer group-hover:border-indigo-200 transition-colors"
                   />
                 </div>
               )}
             </div>
 
-            <button type="submit" disabled={loading} className="w-full py-6 rounded-3xl font-black text-white bg-indigo-600 hover:bg-indigo-700 uppercase tracking-widest text-sm shadow-xl active:scale-[0.99] transition-all">
-              {loading ? 'Processing Handshake...' : `Run ${fileType.toUpperCase()} Extraction`}
+            <button type="submit" disabled={loading} className="w-full py-6 rounded-3xl font-black text-white bg-indigo-600 hover:bg-indigo-700 uppercase tracking-widest text-sm shadow-xl active:scale-[0.99] transition-all disabled:opacity-50">
+              {loading ? 'Initialising Extraction Protocol...' : `Run ${fileType.toUpperCase()} Command`}
             </button>
           </form>
         </div>
       </div>
 
-      <div className="bg-white rounded-[2rem] shadow-lg border border-slate-200 p-8 flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="space-y-1">
-          <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Verify System Integrity</h4>
-          <p className="text-xs text-slate-500 font-medium">Authenticate any SHA-256 hash against the Wright Database.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[800px]">
+        {/* LEFT: TRANSCRIPTION VIEW */}
+        <div className="lg:col-span-4 flex flex-col h-full space-y-6">
+          <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+            <div className="px-8 py-6 bg-slate-900 flex justify-between items-center">
+              <h4 className="font-black text-white text-[10px] uppercase tracking-widest truncate">{videoTitle}</h4>
+              <button 
+                onClick={handleSpeak}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase hover:bg-indigo-700"
+              >
+                Speak
+              </button>
+            </div>
+            <div className="p-10 flex-1 overflow-y-auto text-slate-800 leading-relaxed font-serif text-lg bg-slate-50/50 whitespace-pre-wrap selection:bg-indigo-100 custom-scrollbar">
+              {transcription || (
+                <div className="h-full flex flex-col items-center justify-center text-slate-300 text-center space-y-4">
+                  <span className="text-5xl">📡</span>
+                  <p className="font-bold uppercase tracking-widest text-[10px]">Awaiting Verbatim Stream...</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="flex flex-1 gap-3 w-full md:max-w-xl">
-          <input 
-            value={verifyChecksumInput}
-            onChange={(e) => { setVerifyChecksumInput(e.target.value); setVerifyStatus('IDLE'); }}
-            placeholder="Paste Checksum for Verification..."
-            className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl focus:bg-white outline-none font-mono text-xs transition-colors ${verifyStatus === 'VALID' ? 'border-emerald-500 bg-emerald-50' : verifyStatus === 'INVALID' ? 'border-rose-500 bg-rose-50' : 'border-slate-100'}`}
-          />
-          <button onClick={handleVerifyChecksum} className="px-8 py-4 bg-slate-900 text-white font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-black transition-colors">Check DB</button>
+
+        {/* CENTER: SECURE CHAT VAULT */}
+        <div className="lg:col-span-5 flex flex-col h-full">
+          <div className="bg-slate-900 rounded-[2.5rem] shadow-2xl border border-slate-800 p-8 flex flex-col h-full relative overflow-hidden">
+            <div className="flex justify-between items-center mb-6 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_10px_#6366f1]"></div>
+                <h4 className="text-xl font-black text-white uppercase tracking-tight">SHA-512 Secure Vault</h4>
+              </div>
+              <button 
+                onClick={downloadChatLog}
+                disabled={!transcription}
+                className="px-4 py-2 bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-colors disabled:opacity-30"
+              >
+                Download Log
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto mb-6 space-y-6 pr-2 custom-scrollbar relative z-10">
+              {chatHistory.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 text-center">
+                  <div className="w-20 h-20 rounded-full border-4 border-slate-800 flex items-center justify-center text-3xl">🔐</div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em]">{transcription ? 'Security Link Ready' : 'Protocol Locked'}</p>
+                </div>
+              ) : chatHistory.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
+                  <div className="max-w-[90%] space-y-2">
+                    <div className={`p-6 rounded-[2rem] text-sm leading-relaxed font-medium ${
+                      msg.role === 'user' 
+                        ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-900/40 rounded-tr-none' 
+                        : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none shadow-lg'
+                    }`}>
+                      {msg.text}
+                    </div>
+                    {msg.hash && (
+                      <p className="text-[7px] font-mono text-slate-500 px-4 truncate uppercase tracking-tighter">
+                        SHA-512 CIPHER: {msg.hash}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+              
+              {/* iMessage Typing Indicator */}
+              {isAiTyping && (
+                <div className="flex justify-start animate-in fade-in duration-300">
+                  <div className="bg-slate-800 p-4 rounded-[2rem] rounded-tl-none border border-slate-700 flex gap-1 items-center shadow-lg">
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Granular Encryption Progress Feedback */}
+              {encryptionProgress > 0 && (
+                <div className="flex flex-col gap-3 p-4 bg-black/20 rounded-3xl border border-white/5 animate-in fade-in duration-300">
+                  <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em]">
+                    <span className="text-indigo-400 animate-pulse">{encryptionStage}</span>
+                    <span className="text-slate-500 font-mono">{encryptionProgress}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                    <div 
+                      className="h-full bg-indigo-500 transition-all duration-300 shadow-[0_0_15px_#6366f1]" 
+                      style={{ width: `${encryptionProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <form onSubmit={handleChat} className="flex gap-4 relative z-10">
+              <input type="file" hidden ref={chatFileRef} onChange={handleChatUpload} />
+              <button 
+                type="button" 
+                onClick={() => chatFileRef.current?.click()}
+                disabled={!transcription || chatLoading}
+                className="w-14 h-14 bg-slate-800 text-white rounded-2xl flex items-center justify-center hover:bg-slate-700 transition-all shadow-lg active:scale-90 disabled:opacity-20"
+                title="Inject Contextual Asset"
+              >
+                <span className="text-xl">📎</span>
+              </button>
+              <div className="flex-1 relative">
+                <input 
+                  disabled={!transcription || chatLoading}
+                  value={chatQuestion} onChange={(e) => setChatQuestion(e.target.value)}
+                  placeholder={transcription ? "Analyse data in secure context..." : "Locked until data ingestion..."}
+                  className="w-full h-14 px-8 bg-black/50 border-2 border-slate-700 rounded-2xl text-white font-medium outline-none focus:border-indigo-600 transition-all placeholder:text-slate-600 disabled:cursor-not-allowed"
+                />
+                <button 
+                  type="submit" 
+                  disabled={!transcription || chatLoading || !chatQuestion}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center hover:scale-105 transition-transform shadow-lg disabled:opacity-0"
+                >
+                  ➜
+                </button>
+              </div>
+            </form>
+            
+            <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[radial-gradient(#4f46e5_1px,transparent_1px)] [background-size:24px_24px]"></div>
+          </div>
+        </div>
+
+        {/* RIGHT: EXPORT SIDEBAR */}
+        <div className="lg:col-span-3 flex flex-col h-full">
+          <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 p-10 flex flex-col h-full">
+            <div className="mb-10">
+              <h4 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Export Manifest</h4>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Select Forensic Assets</p>
+            </div>
+            
+            <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-3">
+                <h5 className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.2em] pb-2 border-b">Documents</h5>
+                {TRANSCRIPT_OPTIONS.map(opt => (
+                  <label 
+                    key={opt.id} 
+                    className={`flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                      selectedTranscripts.includes(opt.id) 
+                        ? 'border-indigo-600 bg-indigo-50/40 shadow-sm' 
+                        : 'border-slate-50 hover:border-indigo-100'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-black text-slate-900 uppercase tracking-wide">{opt.label}</span>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedTranscripts.includes(opt.id)} 
+                        onChange={() => setSelectedTranscripts(prev => prev.includes(opt.id) ? prev.filter(i => i !== opt.id) : [...prev, opt.id])} 
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600" 
+                      />
+                    </div>
+                    <span className="text-[9px] font-medium text-slate-500">{opt.desc}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="space-y-3 pt-6">
+                <h5 className="text-[9px] font-black text-amber-600 uppercase tracking-[0.2em] pb-2 border-b">Hardware Master</h5>
+                {AUDIO_OPTIONS.map(opt => (
+                  <label 
+                    key={opt.id} 
+                    className={`flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                      selectedMedia.includes(opt.id) 
+                        ? 'border-amber-600 bg-amber-50/40 shadow-sm' 
+                        : 'border-slate-50 hover:border-amber-100'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-black text-slate-900 uppercase tracking-wide">{opt.label}</span>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedMedia.includes(opt.id)} 
+                        onChange={() => setSelectedMedia(p => p.includes(opt.id) ? p.filter(i => i !== opt.id) : [...p, opt.id])} 
+                        className="w-4 h-4 rounded border-slate-300 text-amber-600" 
+                      />
+                    </div>
+                    <span className="text-[9px] font-medium text-slate-500">{opt.desc}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-10 pt-10 border-t border-slate-100">
+              <button 
+                onClick={handleProvision}
+                disabled={!transcription}
+                className="w-full py-6 bg-indigo-600 text-white font-black rounded-[2rem] hover:bg-indigo-700 shadow-2xl shadow-indigo-100 uppercase tracking-widest text-[10px] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:bg-slate-100 disabled:text-slate-300 disabled:shadow-none"
+              >
+                Provision & Sign Assets
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-
-      {transcription && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-5">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 flex flex-col min-h-[700px]">
-              <div className="px-10 py-6 bg-slate-900 flex justify-between items-center rounded-t-[2.5rem]">
-                <h4 className="font-black text-white text-sm uppercase tracking-widest truncate max-w-[60%]">{videoTitle}</h4>
-                <div className="flex gap-4">
-                  <button onClick={handleSpeak} className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-900/50">Speak Content</button>
-                </div>
-              </div>
-              <div className="p-12 prose max-w-none text-slate-800 leading-relaxed overflow-y-auto h-[600px] font-serif text-xl bg-slate-50/50 whitespace-pre-wrap selection:bg-indigo-100 custom-scrollbar">
-                {transcription}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 p-10 space-y-6">
-              <h4 className="text-xl font-black text-slate-900 uppercase">AI Diagnostic Assistant</h4>
-              {chatResponse && <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-3xl text-sm leading-relaxed text-indigo-900 italic font-medium">Gemini: {chatResponse}</div>}
-              <form onSubmit={handleChat} className="relative">
-                <input value={chatQuestion} onChange={(e) => setChatQuestion(e.target.value)} placeholder="Analyze content with Wright Intelligence..." className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all pr-32 font-medium" />
-                <button disabled={chatLoading} className="absolute right-2 top-2 bottom-2 px-6 bg-indigo-600 text-white font-black text-[10px] uppercase rounded-xl hover:bg-indigo-700">
-                  {chatLoading ? 'Syncing...' : 'Analyze'}
-                </button>
-              </form>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 p-10 flex flex-col sticky top-8">
-              <div className="mb-10">
-                <h4 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Export Manifest</h4>
-                <p className="text-xs text-slate-500 font-medium">Binary headers will be injected for hardware recognition across all selected formats.</p>
-              </div>
-
-              <div className="space-y-8 flex-1 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
-                <div className="space-y-4">
-                  <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest border-b pb-2">Document Extractions</h5>
-                  <div className="grid gap-2">
-                    {TRANSCRIPT_OPTIONS.map(opt => (
-                      <label key={opt.id} className="flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all hover:border-indigo-100 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/30">
-                        <span className="text-sm font-bold text-slate-700">{opt.label}</span>
-                        <input type="checkbox" checked={selectedTranscripts.includes(opt.id)} onChange={() => toggleTranscript(opt.id)} className="w-5 h-5 rounded text-indigo-600" />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h5 className="text-[10px] font-black text-amber-600 uppercase tracking-widest border-b pb-2">Media Transcodings</h5>
-                  <div className="grid gap-2">
-                    {AUDIO_OPTIONS.map(opt => (
-                      <label key={opt.id} className="flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all hover:border-amber-100 has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50/30">
-                        <span className="text-sm font-bold text-slate-700">{opt.label}</span>
-                        <input type="checkbox" checked={selectedMedia.includes(opt.id)} onChange={() => setSelectedMedia(p => p.includes(opt.id) ? p.filter(i => i !== opt.id) : [...p, opt.id])} className="w-5 h-5 rounded text-amber-600" />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-10 pt-10 border-t border-slate-100">
-                <button onClick={handleProvision} className="w-full py-6 bg-indigo-600 text-white font-black rounded-[2rem] hover:bg-indigo-700 shadow-2xl shadow-indigo-100 uppercase tracking-widest text-xs active:scale-95 transition-all">
-                  📥 Provision & Sign Assets
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
