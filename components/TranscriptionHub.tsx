@@ -622,11 +622,11 @@ startxref
               {/* Refined iMessage Typing Indicator */}
               {isAiTyping && (
                 <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="bg-slate-800 p-5 rounded-[2.2rem] rounded-tl-none border border-slate-700/50 flex gap-1.5 items-center shadow-2xl relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-indigo-500/5 animate-pulse pointer-events-none"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite_-0.3s]"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite_-0.15s]"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite]"></div>
+                  <div className="bg-slate-800/80 backdrop-blur-md p-5 rounded-[2.2rem] rounded-tl-none border border-white/5 flex gap-1.5 items-center shadow-[0_10px_40px_rgba(0,0,0,0.5)] relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 to-transparent animate-pulse pointer-events-none"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite_-0.3s] shadow-[0_0_8px_rgba(148,163,184,0.3)]"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite_-0.15s] shadow-[0_0_8px_rgba(148,163,184,0.3)]"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-[bounce_1.2s_infinite] shadow-[0_0_8px_rgba(148,163,184,0.3)]"></div>
                   </div>
                 </div>
               )}

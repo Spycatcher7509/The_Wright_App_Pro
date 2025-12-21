@@ -100,7 +100,7 @@ const App: React.FC = () => {
                <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${gateChoice === 'DECLINE' ? 'bg-rose-50 border-rose-600' : 'bg-white border-slate-100 hover:border-rose-100'}`}>
                   <input 
                     type="radio" 
-                    name="gate" 
+                    name="radio" 
                     className="w-5 h-5 text-rose-600 focus:ring-0" 
                     checked={gateChoice === 'DECLINE'}
                     onChange={() => setGateChoice('DECLINE')}
@@ -172,27 +172,33 @@ const App: React.FC = () => {
         onLogout={() => setUser(null)}
       />
       <main className="flex-1 overflow-y-auto p-12 relative">
-        <header className="flex justify-between items-center mb-10">
-          <div className="flex flex-col items-start">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-1">19th February 2025</p>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic leading-none">{APP_TITLE}</h1>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></span>
-              <p className="text-[11px] font-mono font-bold text-indigo-600 tracking-widest uppercase">Atom Time: {atomTime}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-5">
-            <div className="text-right">
-              <p className="text-sm font-bold text-slate-900">{user.name || user.email}</p>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{user.role}</p>
-            </div>
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 p-[2px] shadow-lg">
-              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center text-indigo-600 font-black overflow-hidden">
-                {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : user.email[0].toUpperCase()}
+        <header className="flex flex-col items-center mb-16 text-center">
+          <div className="space-y-3">
+            {/* The Date: Profound Tracking */}
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.6em] animate-in fade-in slide-in-from-top duration-1000">
+              19th February 2025
+            </p>
+            
+            {/* The App Title: Impactful & Elegant */}
+            <h1 className="text-6xl font-black text-slate-900 tracking-tighter italic leading-none drop-shadow-sm selection:bg-indigo-600 selection:text-white">
+              {APP_TITLE}
+            </h1>
+            
+            {/* Atom Time: High-Tech Capsule */}
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <div className="flex items-center gap-3 px-6 py-2.5 bg-white rounded-full border border-slate-200 shadow-sm shadow-indigo-100/50 transition-all hover:border-indigo-200">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
+                </span>
+                <p className="text-[10px] font-mono font-black text-slate-900 tracking-[0.25em] uppercase">
+                  Atom Time: <span className="text-indigo-600">{atomTime}</span>
+                </p>
               </div>
             </div>
           </div>
         </header>
+
         {renderContent()}
       </main>
     </div>
