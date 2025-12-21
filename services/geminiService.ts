@@ -4,12 +4,12 @@ import { GoogleGenAI, Modality } from "@google/genai";
 export class GeminiService {
   private static readonly GB_INSTRUCTION = "CRITICAL: You must use British English (GB) spelling at all times (e.g., 'initialise', 'programme', 'colour', 'centre', 'authorised'). All dates must be in DD/MM/YYYY format. All times must be in 24-hour format.";
 
-  /**
-   * Fresh instantiation is mandatory to ensure the bridge picks up the 
-   * latest API key injected into process.env.
-   */
   private static createClient() {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const key = process.env.API_KEY;
+    if (!key || key === "undefined") {
+      throw new Error("Security Protocol Failure: No Authorised API Key was found in the environment. Please provision the 'API_KEY' in your project settings.");
+    }
+    return new GoogleGenAI({ apiKey: key });
   }
 
   static async transcribeFile(file: File): Promise<string> {
