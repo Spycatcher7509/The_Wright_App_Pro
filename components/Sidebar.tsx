@@ -12,6 +12,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'profile', label: 'My Identity', icon: '👤' },
     { id: 'transcribe', label: 'Transcription Hub', icon: '🎙️' },
     { id: 'voice', label: 'Voice Lab', icon: '🗣️' },
     { id: 'intercom', label: 'Secure Intercom', icon: '📡' },
@@ -21,7 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     { id: 'support', label: 'Support Hub', icon: '📩' },
     { id: 'diagnostics', label: 'Diagnostics Lab', icon: '🧬' },
     { id: 'admin', label: 'Command Centre', icon: '🛠️', roleRequired: ['ADMIN', 'SUPER_ADMIN'] },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
+    { id: 'settings', label: 'System Configuration', icon: '⚙️', roleRequired: ['ADMIN', 'SUPER_ADMIN'] },
   ];
 
   const filteredMenu = menuItems.filter(item => {

@@ -11,6 +11,7 @@ import TranscriptionHub from './components/TranscriptionHub';
 import VoiceHub from './components/VoiceHub';
 import GlobalIntercom from './components/GlobalIntercom';
 import UserGuide from './components/UserGuide';
+import UserProfile from './components/UserProfile';
 import LogViewer from './components/LogViewer';
 import TicketViewer from './components/TicketViewer';
 import SupportForm from './components/SupportForm';
@@ -138,6 +139,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard user={user} />;
+      case 'profile': return <UserProfile user={user} onUpdate={setUser} />;
       case 'transcribe': return <TranscriptionHub user={user} />;
       case 'voice': return <VoiceHub user={user} />;
       case 'intercom': return <GlobalIntercom user={user} />;
@@ -163,7 +165,7 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-12 relative">
         <header className="flex justify-between items-center mb-10">
           <div>
-            <h2 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">{activeTab}</h2>
+            <h2 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">{activeTab.replace('profile', 'My Identity')}</h2>
             <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic">{APP_TITLE}</h1>
           </div>
           <div className="flex items-center gap-5">
