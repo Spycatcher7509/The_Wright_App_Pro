@@ -167,8 +167,8 @@ const VoiceHub: React.FC<{ user: User }> = ({ user }) => {
               setCurrentTurn(null);
             }
 
-            // Handle Audio Data
-            const base64Audio = msg.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+            // Handle Audio Data with safe optional chaining for parts access
+            const base64Audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (base64Audio && audioContextOutRef.current) {
               const ctx = audioContextOutRef.current;
               nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
