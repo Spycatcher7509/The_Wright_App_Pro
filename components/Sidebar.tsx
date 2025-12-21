@@ -15,6 +15,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     { id: 'transcribe', label: 'Transcription Hub', icon: '🎙️' },
     { id: 'voice', label: 'Voice Lab', icon: '🗣️' },
     { id: 'intercom', label: 'Secure Intercom', icon: '📡' },
+    { id: 'guide', label: 'Resource Centre', icon: '📚' },
     { id: 'logs', label: 'View Logs', icon: '📜' },
     { id: 'tickets', label: 'View Tickets', icon: '🎫' },
     { id: 'support', label: 'Support Hub', icon: '📩' },
@@ -39,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
           <span className="font-bold text-white tracking-tight italic">Wright_App_pro</span>
         </div>
         
-        <nav className="space-y-1">
+        <nav className="space-y-1 overflow-y-auto custom-scrollbar flex-1 pr-1" style={{maxHeight: 'calc(100vh - 350px)'}}>
           {filteredMenu.map((item) => (
             <button
               key={item.id}
