@@ -53,3 +53,16 @@ export interface BackupRecord {
   path: string;
   type: 'BACKUP' | 'RESTORE';
 }
+
+// Global declaration for the AI Studio bridge
+declare global {
+  // Defining AIStudio interface to resolve type mismatch with existing global definitions
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    aistudio?: AIStudio;
+  }
+}
