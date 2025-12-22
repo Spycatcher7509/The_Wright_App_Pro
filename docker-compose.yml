@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  the_wright_app_pro:
+    build: .
+    container_name: wright_app_pro_engine
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production
+      - API_KEY=${API_KEY}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+    restart: always
+
+  # Local development parity for Netlify Functions (Relay Gateway)
+  netlify_simulator:
+    image: node:20-alpine
+    container_name: netlify_relay_simulator
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: npx netlify-cli dev --offline
+    ports:
+      - "8888:8888"
+    environment:
+      - RESEND_API_KEY=${RESEND_API_KEY}

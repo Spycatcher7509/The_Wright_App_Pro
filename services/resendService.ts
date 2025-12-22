@@ -8,6 +8,8 @@ export interface DispatchResponse {
   success: boolean;
   error?: string;
   isCorsError?: boolean;
+  statusCode?: number;
+  rawResponse?: any;
 }
 
 export class ResendService {
@@ -46,11 +48,16 @@ export class ResendService {
       const data = await response.json();
 
       if (!response.ok) {
-        return { success: false, error: data.message || 'Relay Gateway Rejected Payload' };
+        return { 
+          success: false, 
+          error: data.message || 'Relay Gateway Rejected Payload',
+          statusCode: response.status,
+          rawResponse: data
+        };
       }
 
       onStatusUpdate?.({ step: 'SUCCESS', message: 'Dispatch Confirmed.' });
-      return { success: true };
+      return { success: true, statusCode: response.status, rawResponse: data };
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Handshake failure";
       const isCors = errorMsg.toLowerCase().includes('cors') || errorMsg === 'Failed to fetch';
@@ -62,7 +69,7 @@ export class ResendService {
   static async testEmail(onStatusUpdate?: (status: DispatchStatus) => void): Promise<DispatchResponse> {
     return this.sendSupportEmail(
       "sys.admin@mysecureapp.co.uk", 
-      "E2E Handshake Verification via Military Grade Relay Protocol.", 
+      "E2E Handshake Verification via Military Grade Relay Protocol. This is an automated integrity test.", 
       "SYS-TEST",
       onStatusUpdate
     );
