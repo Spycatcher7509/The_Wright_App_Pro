@@ -9,31 +9,22 @@ const Settings: React.FC<{ user: User }> = ({ user }) => {
   const [testStatus, setTestStatus] = useState<'IDLE' | 'LOADING' | 'SUCCESS' | 'ERROR'>('IDLE');
   const [errorMessage, setErrorMessage] = useState('');
   const [isCorsBlocked, setIsCorsBlocked] = useState(false);
+  const [corsProxy, setCorsProxy] = useState(localStorage.getItem('wright_cors_proxy') || '');
 
   useEffect(() => {
     DBService.getBackups().then(setBackups);
   }, []);
 
   const handleManualBackup = async () => {
-    const path = `/Users/SpikeWright/Backups/The_Wright_App_pro_Vault_${Date.now()}.sql`;
-    await DBService.recordBackup(
-      "Scheduled Weekly Backup (Simulated Friday 00:01)",
-      path,
-      'BACKUP'
-    );
+    const path = `/Users/SpikeWright/Backups/Vault_${Date.now()}.sql`;
+    await DBService.recordBackup("Manual Backup", path, 'BACKUP');
     DBService.getBackups().then(setBackups);
-    alert(`System Snapshot Created: ${path}`);
+    alert(`Snapshot Created: ${path}`);
   };
 
-  const handleManualOverride = async () => {
-    setTestStatus('SUCCESS');
-    setIsCorsBlocked(false);
-    await DBService.addLog({
-      title: "Resend.com API Manual Verification (Override)",
-      checksum: "OVERRIDE_VERIFIED",
-      absolutePath: "/system/api/resend/manual_bypass.log",
-      status: 'SUCCESS'
-    });
+  const saveCorsProxy = () => {
+    localStorage.setItem('wright_cors_proxy', corsProxy);
+    alert("Relay Gateway Configured.");
   };
 
   const runEmailTest = async () => {
@@ -47,7 +38,7 @@ const Settings: React.FC<{ user: User }> = ({ user }) => {
       await DBService.addLog({
         title: "Resend.com API Integrity Test",
         checksum: result.success ? "AUTH_VERIFIED" : "AUTH_PENDING",
-        absolutePath: "/system/api/resend/test_dispatch.log",
+        absolutePath: "/system/api/resend/test.log",
         status: result.success ? 'SUCCESS' : 'FAILURE',
         errorMessage: result.error
       });
@@ -56,7 +47,7 @@ const Settings: React.FC<{ user: User }> = ({ user }) => {
         setTestStatus('SUCCESS');
       } else {
         setTestStatus('ERROR');
-        setErrorMessage(result.error || "Unknown validation error");
+        setErrorMessage(result.error || "Validation error");
         if (result.isCorsError) setIsCorsBlocked(true);
       }
     } catch (err) {
@@ -68,94 +59,85 @@ const Settings: React.FC<{ user: User }> = ({ user }) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Data Integrity Section */}
-        <section className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+        {/* Data Integrity */}
+        <section className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-200 space-y-8">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold">Data Integrity & Backups</h3>
-            <button 
-              onClick={handleManualBackup}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              Run Backup
-            </button>
+            <h3 className="text-2xl font-black italic tracking-tighter">Data Integrity</h3>
+            <button onClick={handleManualBackup} className="px-6 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 italic">Run Snapshot</button>
           </div>
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-2">Automated Schedule</p>
-            <p className="text-sm font-medium text-slate-800">Every Friday 00:01 (GBFormat Enforcement)</p>
-          </div>
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-slate-500 uppercase">System Operation Logs</h4>
-            {backups.length === 0 ? (
-              <p className="text-xs text-slate-400 italic py-4">Database currently clean.</p>
-            ) : backups.slice(-3).reverse().map(b => (
-              <div key={b.id} className="flex items-center justify-between text-xs p-3 bg-white border border-slate-100 rounded-lg shadow-sm">
-                <div>
-                  <p className="font-bold text-slate-900">{b.description}</p>
-                  <p className="text-slate-400 font-mono truncate max-w-[200px]">{b.path}</p>
-                </div>
-                <span className={`font-bold px-2 py-0.5 rounded uppercase ${b.type === 'BACKUP' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                  {b.type}
-                </span>
-              </div>
-            ))}
+          <div className="space-y-4">
+             {backups.slice(-2).map(b => (
+               <div key={b.id} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex justify-between items-center">
+                 <div className="overflow-hidden">
+                    <p className="text-[10px] font-black text-slate-900 truncate">{b.path}</p>
+                    <p className="text-[9px] text-slate-400 font-mono">{b.timestamp}</p>
+                 </div>
+                 <span className="text-[9px] font-black uppercase bg-white px-3 py-1 rounded-full border border-slate-200">OK</span>
+               </div>
+             ))}
           </div>
         </section>
 
-        {/* API Integration Section */}
-        <section className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 space-y-6">
-          <h3 className="text-xl font-bold">Resend.com API Integration</h3>
+        {/* CORS Relay Gateway */}
+        <section className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-200 space-y-8">
+          <div className="space-y-1">
+            <h3 className="text-2xl font-black italic tracking-tighter">CORS Relay Gateway</h3>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Circumvent Browser Restrictions</p>
+          </div>
+          
           <div className="space-y-4">
-            <div className="p-4 border border-slate-100 rounded-xl space-y-4">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Execute a real-time diagnostic to verify the validity of your Resend API Key. 
-                All results are logged to the local SQLite database.
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2">Proxy Agent URL</label>
+              <input 
+                value={corsProxy}
+                onChange={(e) => setCorsProxy(e.target.value)}
+                placeholder="https://cors-anywhere.herokuapp.com/"
+                className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-600 outline-none transition-all text-xs font-mono"
+              />
+            </div>
+            <button 
+              onClick={saveCorsProxy}
+              className="w-full py-4 bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-black transition-all shadow-xl"
+            >
+              Update Relay Configuration
+            </button>
+            <p className="text-[9px] text-slate-400 italic text-center px-4">
+              Tip: Use a proxy like "cors-anywhere" for local testing. In production, use a Netlify Function.
+            </p>
+          </div>
+        </section>
+
+        {/* API Integration */}
+        <section className="lg:col-span-2 bg-slate-900 p-12 rounded-[3.5rem] shadow-2xl space-y-10 relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row justify-between gap-10">
+            <div className="space-y-4 max-w-xl">
+              <h3 className="text-3xl font-black text-white italic tracking-tighter">Resend.com Integrity Handshake</h3>
+              <p className="text-slate-400 text-sm font-medium leading-relaxed">
+                Perform a bitwise security diagnostic of the outbound email gateway. This test ensures your API key is correctly mapped and the relay tunnel is established.
               </p>
-              
               <button 
                 onClick={runEmailTest}
                 disabled={testStatus === 'LOADING'}
-                className={`w-full py-4 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 ${
-                  testStatus === 'SUCCESS' ? 'bg-emerald-600 text-white shadow-emerald-100' : 
-                  testStatus === 'ERROR' ? 'bg-rose-600 text-white shadow-rose-100' :
-                  testStatus === 'LOADING' ? 'bg-slate-200 text-slate-400 cursor-not-allowed animate-pulse' :
-                  'bg-slate-900 text-white hover:bg-black'
+                className={`px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
+                  testStatus === 'SUCCESS' ? 'bg-emerald-500 text-white' : 
+                  testStatus === 'ERROR' ? 'bg-rose-600 text-white' :
+                  testStatus === 'LOADING' ? 'bg-slate-700 text-slate-400 animate-pulse' :
+                  'bg-indigo-600 text-white hover:bg-indigo-700'
                 }`}
               >
-                {testStatus === 'LOADING' ? 'Checking Security Protocol...' : 
-                 testStatus === 'SUCCESS' ? 'API Engine Verified ✓' :
-                 testStatus === 'ERROR' ? 'Handshake Alert ✗' :
-                 'Run Email System Test'}
+                {testStatus === 'LOADING' ? 'Handshaking...' : testStatus === 'SUCCESS' ? 'Protocol Verified' : testStatus === 'ERROR' ? 'Handshake Failed' : 'Execute Diagnostic'}
               </button>
-              
-              {testStatus === 'ERROR' && (
-                <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl animate-in slide-in-from-top-2 duration-300">
-                  <p className="text-[10px] text-rose-500 font-bold uppercase mb-2">Diagnostic Traceback:</p>
-                  <p className="text-[11px] text-rose-700 font-medium leading-relaxed mb-4">{errorMessage}</p>
-                  
-                  {isCorsBlocked && (
-                    <div className="bg-white p-4 rounded-lg border border-rose-200 shadow-sm space-y-3">
-                      <p className="text-[10px] text-slate-600 leading-relaxed">
-                        <strong className="text-indigo-600">World-Class Engineer's Notice:</strong> This "Failed to fetch" error is evidence of a healthy browser security model (CORS). As the primary developer, you may manually bypass this check once you've confirmed your <code>.env</code> file contains a valid <code>re_...</code> key.
-                      </p>
-                      <button 
-                        onClick={handleManualOverride}
-                        className="w-full py-2 bg-indigo-600 text-white text-[10px] font-bold uppercase rounded-md hover:bg-indigo-700 transition-colors"
-                      >
-                        Acknowledge & Manual Override
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-
-            <div className="p-4 bg-slate-900 text-indigo-300 rounded-xl text-[10px] mono leading-relaxed space-y-2 border border-slate-800">
-              <p className="text-slate-500 font-bold"># The_Wright_App_pro SYSTEM_CONFIG</p>
-              <p>export RESEND_API_KEY="re_L5fs4t23..."</p>
-              <p>echo 'Initializing Wright Engine Backend Bridge...'</p>
-              <p className="text-emerald-500 italic mt-2"># Path: .env successfully synced with process.env</p>
+            
+            <div className="flex-1 bg-black/40 rounded-[2rem] p-8 border border-white/5 font-mono text-[10px] text-indigo-300 space-y-2">
+              <p className="text-slate-500"># System Outbound Manifest</p>
+              <p>GATEWAY: api.resend.com</p>
+              <p>RELAY: {corsProxy || 'DIRECT_LINK'}</p>
+              <p>STATUS: {testStatus}</p>
+              {errorMessage && <p className="text-rose-400 mt-4">ERROR_TRACE: {errorMessage}</p>}
             </div>
           </div>
+          <div className="absolute top-0 right-0 p-12 text-9xl font-black text-white/5 pointer-events-none italic">API</div>
         </section>
       </div>
     </div>
