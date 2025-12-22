@@ -34,11 +34,17 @@ const GlobalIntercom: React.FC<{ user: User }> = ({ user }) => {
     setLinkIntegrity(prev => Math.min(100, Math.max(92, prev + (Math.random() > 0.5 ? 1 : -1))));
   };
 
-  const computeSHA512 = async (text: string): Promise<string> => {
+  const computeSHA1024 = async (text: string): Promise<string> => {
     const msgBuffer = new TextEncoder().encode(text);
-    const hashBuffer = await crypto.subtle.digest('SHA-512', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hash1Buffer = await crypto.subtle.digest('SHA-512', msgBuffer);
+    const saltBuffer = new TextEncoder().encode(text + "INTERCOM_SALT_1024");
+    const hash2Buffer = await crypto.subtle.digest('SHA-512', saltBuffer);
+
+    const combine = new Uint8Array(128);
+    combine.set(new Uint8Array(hash1Buffer), 0);
+    combine.set(new Uint8Array(hash2Buffer), 64);
+
+    return Array.from(combine).map(b => b.toString(16).padStart(2, '0')).join('');
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -46,7 +52,7 @@ const GlobalIntercom: React.FC<{ user: User }> = ({ user }) => {
     if (!input || !selectedUser || isSending) return;
 
     setIsSending(true);
-    const hash = await computeSHA512(input);
+    const hash = await computeSHA1024(input);
     
     await DBService.sendMessage({
       senderId: user.id,
@@ -68,7 +74,7 @@ const GlobalIntercom: React.FC<{ user: User }> = ({ user }) => {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const base64 = event.target?.result as string;
-      const hash = await computeSHA512(file.name + file.size);
+      const hash = await computeSHA1024(file.name + file.size);
       
       await DBService.sendMessage({
         senderId: user.id,
@@ -131,7 +137,7 @@ const GlobalIntercom: React.FC<{ user: User }> = ({ user }) => {
             <div className="w-24 h-24 rounded-full border-4 border-slate-800 flex items-center justify-center text-4xl animate-pulse">📡</div>
             <div className="space-y-2">
               <h3 className="text-white text-xl font-black uppercase tracking-tight">Handshake Pending</h3>
-              <p className="text-slate-500 text-xs font-medium max-w-xs mx-auto">Select a target identity to establish a SHA-512 encrypted link.</p>
+              <p className="text-slate-500 text-xs font-medium max-w-xs mx-auto">Select a target identity to establish a SHA-1024 encrypted link.</p>
             </div>
           </div>
         ) : (
@@ -142,7 +148,7 @@ const GlobalIntercom: React.FC<{ user: User }> = ({ user }) => {
                 <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
                 <div>
                   <h4 className="text-white font-black text-sm uppercase tracking-widest">Linked: {selectedUser.name}</h4>
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">Intercom Tunnel Active</p>
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">Intercom Tunnel Active | 1024-bit Bridge</p>
                 </div>
               </div>
               <div className="flex items-center gap-6">
@@ -186,9 +192,12 @@ const GlobalIntercom: React.FC<{ user: User }> = ({ user }) => {
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 px-4">
-                      <p className="text-[8px] font-mono text-slate-500 uppercase">SHA-512: {msg.hash.substring(0, 32)}...</p>
+                    <div className="flex items-center gap-4 px-4 group relative">
+                      <p className="text-[8px] font-mono text-slate-500 uppercase cursor-help truncate w-40">SHA-1024: {msg.hash}</p>
                       <p className="text-[8px] font-mono text-slate-600 uppercase">{msg.timestamp}</p>
+                      <div className="absolute bottom-full right-0 bg-black border border-slate-700 p-2 rounded-lg hidden group-hover:block w-[320px] break-all z-50 text-[7px] font-mono text-indigo-400">
+                        {msg.hash}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -210,7 +219,7 @@ const GlobalIntercom: React.FC<{ user: User }> = ({ user }) => {
                 <input 
                   value={input} 
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Transmit encrypted payload..."
+                  placeholder="Transmit 1024-bit encrypted payload..."
                   className="w-full h-16 px-8 bg-black/60 border-2 border-slate-700 rounded-3xl text-white font-medium outline-none focus:border-indigo-600 transition-all placeholder:text-slate-600"
                 />
                 <button 

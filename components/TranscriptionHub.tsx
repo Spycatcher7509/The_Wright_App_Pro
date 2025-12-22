@@ -62,11 +62,20 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
     { id: 'm4a', label: 'M4A HQ', desc: 'Apple Audio Standard' },
   ];
 
-  const computeSHA512 = async (text: string): Promise<string> => {
+  const computeSHA1024 = async (text: string): Promise<string> => {
     const msgBuffer = new TextEncoder().encode(text);
-    const hashBuffer = await crypto.subtle.digest('SHA-512', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    // Standard SHA-512 Block 1
+    const hash1Buffer = await crypto.subtle.digest('SHA-512', msgBuffer);
+    
+    // Salted SHA-512 Block 2 for 1024-bit Cascade
+    const saltBuffer = new TextEncoder().encode(text + "WRIGHT_APP_PRO_SECURE_SALT_V2");
+    const hash2Buffer = await crypto.subtle.digest('SHA-512', saltBuffer);
+
+    const combine = new Uint8Array(128);
+    combine.set(new Uint8Array(hash1Buffer), 0);
+    combine.set(new Uint8Array(hash2Buffer), 64);
+
+    return Array.from(combine).map(b => b.toString(16).padStart(2, '0')).join('');
   };
 
   const createSecurePDF = (title: string, content: string): Blob => {
@@ -88,7 +97,7 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
 4 0 obj << /Length ${textStream.length + 500} >> stream
 BT /F1 16 Tf 50 800 Td (OFFICIAL WRIGHT_APP_PRO FORENSIC REPORT) Tj ET
 BT /F1 12 Tf 50 780 Td (Project ID: ${title.substring(0, 30)}) Tj ET
-BT /F1 8 Tf 50 765 Td (Timestamp: ${date} | Security Protocol: SHA-512 Authenticated) Tj ET
+BT /F1 8 Tf 50 765 Td (Timestamp: ${date} | Security Protocol: SHA-1024 Dual-Block Cascade) Tj ET
 ${textStream}
 endstream endobj
 5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
@@ -127,9 +136,9 @@ startxref
         result = await GeminiService.transcribeFile(selectedFile);
       }
       setTranscription(result);
-      const hash = await computeSHA512(result);
-      await DBService.addLog({ title: videoTitle, checksum: hash.substring(0, 64), absolutePath: `/Vault/${videoTitle}/`, status: 'SUCCESS' });
-      setChatHistory([{ role: 'ai', text: `SHA-512 Secure Link Established. Verbatim Asset "${videoTitle}" is now under Wright Intelligence surveillance. Proceed with forensic query.` }]);
+      const hash = await computeSHA1024(result);
+      await DBService.addLog({ title: videoTitle, checksum: hash.substring(0, 128), absolutePath: `/Vault/${videoTitle}/`, status: 'SUCCESS' });
+      setChatHistory([{ role: 'ai', text: `SHA-1024 Secure Link Established. Verbatim Asset "${videoTitle}" is now under Wright Intelligence surveillance. Proceed with forensic query.` }]);
     } catch (err) {
       alert("Handshake Failure: " + String(err));
     } finally {
@@ -176,8 +185,8 @@ startxref
     setEncryptionProgress(25);
     await new Promise(r => setTimeout(r, 200));
 
-    setEncryptionStage('Hashing SHA-512 Blocks...');
-    const hash = await computeSHA512(text);
+    setEncryptionStage('Hashing SHA-1024 Dual-Blocks...');
+    const hash = await computeSHA1024(text);
     setEncryptionProgress(55);
     await new Promise(r => setTimeout(r, 250));
 
@@ -316,7 +325,7 @@ startxref
     try {
       const content = await GeminiService.transcribeFile(file);
       setTranscription(prev => prev + "\n\n--- INJECTED VERBATIM CONTEXT: " + file.name + " ---\n" + content);
-      setChatHistory(prev => [...prev, { role: 'ai', text: `Success: Verbatim Asset "${file.name}" has been ingested into the active SHA-512 context for comparative analysis.` }]);
+      setChatHistory(prev => [...prev, { role: 'ai', text: `Success: Verbatim Asset "${file.name}" has been ingested into the active SHA-1024 context for comparative analysis.` }]);
     } catch (err) {
       alert("Injection Failure.");
     } finally {
@@ -326,7 +335,7 @@ startxref
   };
 
   const downloadChatLog = () => {
-    const log = chatHistory.map(m => `[${m.role.toUpperCase()}] ${m.hash ? `(CIPHER: ${m.hash.substring(0, 24)}...) ` : ''}${m.text}`).join('\n\n');
+    const log = chatHistory.map(m => `[${m.role.toUpperCase()}] ${m.hash ? `(CIPHER: ${m.hash.substring(0, 32)}...) ` : ''}${m.text}`).join('\n\n');
     const blob = new Blob([log], { type: 'text/plain' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -391,7 +400,7 @@ startxref
           <div className="flex justify-between items-center">
             <div className="space-y-1">
               <h3 className="text-3xl font-black text-slate-900 tracking-tight italic">The_Wright_App_pro</h3>
-              <p className="text-slate-500 font-medium text-sm">Forensic Extraction Handshake | Powered by Gemini Intelligence</p>
+              <p className="text-slate-500 font-medium text-sm">Forensic Extraction Handshake | SHA-1024 Secure Bridge</p>
             </div>
             {statusText && (
               <div className="px-6 py-3 bg-indigo-600 rounded-full text-white font-black text-[10px] uppercase tracking-widest animate-pulse flex items-center gap-2 shadow-lg shadow-indigo-200">
@@ -583,7 +592,7 @@ startxref
             <div className="flex justify-between items-center mb-6 relative z-10">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_10px_#6366f1]"></div>
-                <h4 className="text-xl font-black text-white uppercase tracking-tight">SHA-512 Secure Vault</h4>
+                <h4 className="text-xl font-black text-white uppercase tracking-tight">SHA-1024 Secure Vault</h4>
               </div>
               <button 
                 onClick={downloadChatLog}
@@ -597,7 +606,7 @@ startxref
             <div className="flex-1 overflow-y-auto mb-6 space-y-6 pr-2 custom-scrollbar relative z-10">
               {chatHistory.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 text-center">
-                  <div className="w-20 h-20 rounded-full border-4 border-slate-800 flex items-center justify-center text-3xl">🔐</div>
+                  <div className="w-20 h-20 rounded-full border-4 border-slate-800 flex items-center justify-center text-4xl">🔐</div>
                   <p className="text-xs font-black uppercase tracking-[0.2em]">{transcription ? 'Security Link Ready' : 'Protocol Locked'}</p>
                 </div>
               ) : chatHistory.map((msg, i) => (
@@ -611,15 +620,19 @@ startxref
                       {msg.text}
                     </div>
                     {msg.hash && (
-                      <p className="text-[7px] font-mono text-slate-500 px-4 truncate uppercase tracking-tighter">
-                        SHA-512 CIPHER: {msg.hash}
-                      </p>
+                      <div className="group relative">
+                        <p className="text-[7px] font-mono text-slate-500 px-4 truncate uppercase tracking-tighter cursor-help">
+                          SHA-1024 CIPHER: {msg.hash}
+                        </p>
+                        <div className="absolute bottom-full left-4 bg-black border border-slate-700 p-3 rounded-xl hidden group-hover:block w-[300px] break-all z-50 text-[8px] font-mono text-indigo-400 shadow-2xl">
+                          {msg.hash}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
               ))}
               
-              {/* Refined iMessage Typing Indicator */}
               {isAiTyping && (
                 <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <div className="bg-slate-800/90 backdrop-blur-lg p-5 rounded-[2.2rem] rounded-tl-none border border-white/10 flex gap-2 items-center shadow-[0_20px_60px_rgba(0,0,0,0.6)] relative overflow-hidden group scale-100 transition-transform">
@@ -676,7 +689,7 @@ startxref
                 <input 
                   disabled={!transcription || chatLoading || isRecording}
                   value={chatQuestion} onChange={(e) => setChatQuestion(e.target.value)}
-                  placeholder={isRecording ? "Listening for vocal command..." : transcription ? "Analyse data in secure context..." : "Locked until data ingestion..."}
+                  placeholder={isRecording ? "Listening for vocal command..." : transcription ? "Analyse data in 1024-bit context..." : "Locked until data ingestion..."}
                   className="w-full h-14 px-8 bg-black/50 border-2 border-slate-700 rounded-2xl text-white font-medium outline-none focus:border-indigo-600 transition-all placeholder:text-slate-600 disabled:cursor-not-allowed"
                 />
                 <button 

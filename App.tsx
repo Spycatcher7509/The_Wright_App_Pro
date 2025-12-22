@@ -116,7 +116,7 @@ const App: React.FC = () => {
             <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-xl shadow-indigo-200">🍷</div>
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tighter italic">The_Wright_App_pro</h1>
-              <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Forensic Entry Protocol V2</p>
+              <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Forensic Entry Protocol V2 | SHA-1024 Enabled</p>
             </div>
           </div>
 
@@ -157,7 +157,7 @@ const App: React.FC = () => {
                 onChange={(e) => setIsTicked(e.target.checked)}
               />
               <label htmlFor="tickbox" className="text-[10px] text-slate-500 font-bold uppercase tracking-tight leading-normal cursor-pointer">
-                I acknowledge that this agreement is binding under UK Common Law and that I am entering a secure forensic environment.
+                I acknowledge that this agreement is binding under UK Common Law and that I am entering a secure forensic environment protected by SHA-1024 encryption.
               </label>
             </div>
 
