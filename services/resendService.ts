@@ -1,4 +1,3 @@
-
 export interface DispatchStatus {
   step: 'IDLE' | 'ENCRYPTING' | 'CONNECTING' | 'DISPATCHING' | 'SUCCESS' | 'ERROR';
   message: string;
@@ -45,12 +44,24 @@ export class ResendService {
 
       onStatusUpdate?.({ step: 'DISPATCHING', message: 'Pushing encrypted stream to vault...' });
 
-      const data = await response.json();
+      // Robust JSON Parsing
+      let data: any = {};
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        try {
+          data = await response.json();
+        } catch (e) {
+          console.warn("Failed to parse JSON response, proceeding with empty object");
+        }
+      } else {
+        const text = await response.text();
+        data = { message: text || 'Empty response from relay' };
+      }
 
       if (!response.ok) {
         return { 
           success: false, 
-          error: data.message || 'Relay Gateway Rejected Payload',
+          error: data.message || `Relay Gateway Rejected Payload (Status: ${response.status})`,
           statusCode: response.status,
           rawResponse: data
         };

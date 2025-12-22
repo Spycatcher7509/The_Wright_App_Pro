@@ -55,7 +55,14 @@ export const handler: Handler = async (event) => {
       }),
     });
 
-    const data = await response.json();
+    let data: any = {};
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = { message: text || 'No response body' };
+    }
 
     if (!response.ok) {
       return { statusCode: response.status, body: JSON.stringify(data) };
