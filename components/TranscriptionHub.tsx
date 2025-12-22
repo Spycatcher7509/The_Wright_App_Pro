@@ -67,7 +67,8 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
     { id: 'm4a', label: 'M4A HQ', desc: 'Apple Audio Standard' },
   ];
 
-  const computeSHA1024 = async (text: string): Promise<string> => {
+  const computeMilitaryGradeHash = async (text: string): Promise<string> => {
+    // Implementing Military Grade Dual-Block Cascade (SHA-512 * 2)
     const msgBuffer = new TextEncoder().encode(text);
     const hash1Buffer = await crypto.subtle.digest('SHA-512', msgBuffer);
     const saltBuffer = new TextEncoder().encode(text + "WRIGHT_APP_PRO_SECURE_SALT_V2");
@@ -83,6 +84,7 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
   const handleIntegrityBridge = async () => {
     if (!bridgeChecksum) return;
     setBridgeResult('IDLE');
+    // Calling DBService to verify checksum against local SQLite logs
     const isValid = await DBService.verifyChecksum(bridgeChecksum);
     setBridgeResult(isValid ? 'VALID' : 'INVALID');
     
@@ -90,12 +92,12 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
       setTimeout(() => {
         setChatHistory(prev => [...prev, { 
           role: 'ai', 
-          text: `Integrity Bridge Confirmed: The checksum [${bridgeChecksum.substring(0, 16)}...] matches a verified Military Grade archive entry.` 
+          text: `Military Grade Integrity Check: Checksum [${bridgeChecksum.substring(0, 8)}...] is AUTHENTIC. Verification successful via Dual-Block Cascade.` 
         }]);
         setIsVerifying(false);
         setBridgeChecksum('');
         setBridgeResult('IDLE');
-      }, 800);
+      }, 1000);
     }
   };
 
@@ -157,7 +159,7 @@ startxref
         result = await GeminiService.transcribeFile(selectedFile);
       }
       setTranscription(result);
-      const hash = await computeSHA1024(result);
+      const hash = await computeMilitaryGradeHash(result);
       await DBService.addLog({ title: videoTitle, checksum: hash, absolutePath: `/Vault/${videoTitle}/`, status: 'SUCCESS' });
       setChatHistory([{ role: 'ai', text: `Military Grade Secure Link Established. Verbatim Asset "${videoTitle}" is now under Wright Intelligence surveillance. Proceed with forensic query.` }]);
     } catch (err) {
@@ -207,7 +209,7 @@ startxref
     await new Promise(r => setTimeout(r, 200));
 
     setEncryptionStage('Generating Military Grade Checksums...');
-    const hash = await computeSHA1024(text);
+    const hash = await computeMilitaryGradeHash(text);
     setEncryptionProgress(55);
     await new Promise(r => setTimeout(r, 250));
 
@@ -615,9 +617,9 @@ startxref
               <div className="flex gap-2">
                 <button 
                   onClick={() => setIsVerifying(!isVerifying)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${isVerifying ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${isVerifying ? 'bg-indigo-600 text-white shadow-[0_0_15px_#6366f1]' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
                 >
-                  Integrity Bridge
+                  Verify Integrity
                 </button>
                 <button 
                   onClick={downloadChatLog}
@@ -631,31 +633,35 @@ startxref
 
             {/* Verification Bridge Input Area */}
             {isVerifying && (
-              <div className="mb-6 p-6 bg-black/50 border border-indigo-500/30 rounded-[2rem] animate-in slide-in-from-top-4 duration-300 relative z-20 space-y-4 backdrop-blur-md">
+              <div className="mb-6 p-6 bg-black/50 border-2 border-indigo-500/50 rounded-[2rem] animate-in slide-in-from-top-4 duration-300 relative z-20 space-y-4 backdrop-blur-md shadow-2xl">
                 <div className="flex justify-between items-center">
-                  <h6 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Verify Checksum Bridge</h6>
+                  <h6 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Forensic Integrity Bridge</h6>
                   <button onClick={() => setIsVerifying(false)} className="text-slate-500 hover:text-white text-lg">×</button>
                 </div>
                 <div className="flex gap-2">
                   <input 
                     value={bridgeChecksum}
                     onChange={(e) => { setBridgeChecksum(e.target.value); setBridgeResult('IDLE'); }}
-                    placeholder="Paste Military Grade Checksum..."
-                    className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-indigo-300 outline-none focus:border-indigo-600 transition-all"
+                    placeholder="Input Military Checksum String..."
+                    className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-indigo-300 outline-none focus:border-indigo-600 transition-all placeholder:text-slate-600"
                   />
                   <button 
                     onClick={handleIntegrityBridge}
                     disabled={!bridgeChecksum}
                     className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
-                      bridgeResult === 'VALID' ? 'bg-emerald-600 text-white' : 
-                      bridgeResult === 'INVALID' ? 'bg-rose-600 text-white' : 
+                      bridgeResult === 'VALID' ? 'bg-emerald-600 text-white shadow-[0_0_15px_#10b981]' : 
+                      bridgeResult === 'INVALID' ? 'bg-rose-600 text-white shadow-[0_0_15px_#e11d48]' : 
                       'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50'
                     }`}
                   >
-                    {bridgeResult === 'VALID' ? 'Verified ✓' : bridgeResult === 'INVALID' ? 'Mismatch ✗' : 'Verify'}
+                    {bridgeResult === 'VALID' ? 'Authentic' : bridgeResult === 'INVALID' ? 'Rejection' : 'Verify'}
                   </button>
                 </div>
-                {bridgeResult === 'INVALID' && <p className="text-[9px] text-rose-500 font-black uppercase text-center">Security Breach: Checksum Mismatch</p>}
+                {bridgeResult === 'INVALID' && (
+                  <p className="text-[9px] text-rose-500 font-black uppercase text-center animate-pulse">
+                    Security Policy Violation: Checksum Rejection
+                  </p>
+                )}
               </div>
             )}
 

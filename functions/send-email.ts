@@ -1,4 +1,3 @@
-
 import { Handler } from '@netlify/functions';
 
 export const handler: Handler = async (event) => {
@@ -8,13 +7,15 @@ export const handler: Handler = async (event) => {
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    return { statusCode: 500, body: JSON.stringify({ message: 'Server Configuration Error: Missing API Key' }) };
+    return { 
+      statusCode: 500, 
+      body: JSON.stringify({ message: 'Server Configuration Error: RESEND_API_KEY is not provisioned in Netlify environment variables.' }) 
+    };
   }
 
   try {
     const { fromEmail, message, ticketId } = JSON.parse(event.body || '{}');
 
-    // Updated 'from' to verified domain and 'to' to the requested support address
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -25,7 +26,7 @@ export const handler: Handler = async (event) => {
         from: 'The_Wright_App_pro <support@mysecureapp.co.uk>',
         to: 'accounts@thewrightsupport.com',
         reply_to: fromEmail,
-        subject: `[${ticketId}] SUPPORT REQUEST: ${fromEmail}`,
+        subject: `[${ticketId}] MILITARY GRADE DISPATCH: ${fromEmail}`,
         html: `
           <div style="font-family: sans-serif; padding: 40px; border: 1px solid #e2e8f0; border-radius: 24px; background-color: #ffffff; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
             <div style="margin-bottom: 30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px;">
@@ -67,7 +68,7 @@ export const handler: Handler = async (event) => {
   } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: 'Internal Server Error', error: String(error) }),
+      body: JSON.stringify({ message: 'Internal Relay Error', error: String(error) }),
     };
   }
 };
