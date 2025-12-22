@@ -38,7 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col h-full border-r border-slate-800">
       <div className="p-6">
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">W</div>
+          <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20 text-sm">🍷</div>
           <span className="font-bold text-white tracking-tight italic">Wright_App_pro</span>
         </div>
         

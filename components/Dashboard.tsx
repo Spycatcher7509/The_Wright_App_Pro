@@ -61,7 +61,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
       <div className="bg-slate-900 rounded-[3rem] p-12 text-white relative overflow-hidden shadow-2xl border border-slate-800">
         <div className="relative z-10 space-y-4">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center font-black italic text-2xl shadow-xl">W</div>
+            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-xl">🍷</div>
             <h3 className="text-3xl font-black italic tracking-tighter">Welcome to the Wright Intelligence Node</h3>
           </div>
           <p className="text-slate-400 max-w-2xl text-sm leading-relaxed font-medium">

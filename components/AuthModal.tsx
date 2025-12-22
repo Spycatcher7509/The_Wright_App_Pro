@@ -128,7 +128,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
         <div className="p-10 bg-indigo-600 text-white text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 text-8xl font-black text-white/5 pointer-events-none italic">WRIGHT</div>
           <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-white/20 shadow-xl">
-            <span className="text-3xl font-black italic">W</span>
+            <span className="text-3xl">🍷</span>
           </div>
           <h1 className="text-3xl font-black italic tracking-tighter">{APP_TITLE}</h1>
           <p className="text-indigo-100 text-[10px] font-black uppercase tracking-[0.3em] opacity-80 mt-2">Secure High-Performance Environment</p>
@@ -174,8 +174,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-600 outline-none transition-all font-bold"
-                  placeholder="100 character"
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-600 outline-none transition-all font-bold placeholder:text-slate-300"
+                  placeholder={"*".repeat(100)}
                 />
               </div>
 

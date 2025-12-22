@@ -89,7 +89,7 @@ const App: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-[3rem] shadow-2xl max-w-md w-full p-12 text-center space-y-8 border border-slate-200">
-          <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center font-bold text-white text-3xl mx-auto shadow-xl">V</div>
+          <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center text-white text-3xl mx-auto shadow-xl">🍷</div>
           <div className="space-y-3">
             <h2 className="text-2xl font-black text-slate-900 italic tracking-tighter">Secure Vault Handshake</h2>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
@@ -113,7 +113,7 @@ const App: React.FC = () => {
       <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4">
         <div className="bg-white rounded-[3rem] shadow-2xl max-w-2xl w-full p-12 overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center font-bold text-white text-2xl shadow-xl shadow-indigo-200">W</div>
+            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-xl shadow-indigo-200">🍷</div>
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tighter italic">The_Wright_App_pro</h1>
               <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Forensic Entry Protocol V2</p>
