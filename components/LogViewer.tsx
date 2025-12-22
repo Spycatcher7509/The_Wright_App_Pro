@@ -28,7 +28,7 @@ const LogViewer: React.FC = () => {
           <input 
             value={verifyInput}
             onChange={(e) => { setVerifyInput(e.target.value); setVerifyResult('IDLE'); }}
-            placeholder="Verify 1024-bit Checksum..."
+            placeholder="Verify Military Grade Checksum..."
             className="px-4 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-64"
           />
           <button 
@@ -39,7 +39,7 @@ const LogViewer: React.FC = () => {
               'bg-indigo-600 text-white hover:bg-indigo-700'
             }`}
           >
-            {verifyResult === 'VALID' ? 'Verified ✓' : verifyResult === 'INVALID' ? 'Checksum Mismatch ✗' : 'Verify Bridge'}
+            {verifyResult === 'VALID' ? 'Verified ✓' : verifyResult === 'INVALID' ? 'Mismatch ✗' : 'Verify Bridge'}
           </button>
         </div>
       </div>
@@ -87,7 +87,7 @@ const LogViewer: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
                           <div className="space-y-4">
                             <div>
-                              <p className="font-bold text-slate-500 uppercase mb-1">Dual-Block Checksum (SHA-1024)</p>
+                              <p className="font-bold text-slate-500 uppercase mb-1">Dual-Block Checksum (Military Grade)</p>
                               <p className="mono p-3 bg-white rounded-xl border border-slate-200 text-indigo-700 break-all shadow-inner max-h-32 overflow-y-auto custom-scrollbar">
                                 {log.checksum}
                               </p>
@@ -98,17 +98,11 @@ const LogViewer: React.FC = () => {
                             </div>
                           </div>
                           <div className="space-y-4">
-                            {log.errorMessage && (
-                              <div>
-                                <p className="font-bold text-rose-500 uppercase mb-1">Error Traceback</p>
-                                <p className="p-3 bg-rose-50 rounded-xl border border-rose-100 text-rose-800 font-mono">{log.errorMessage}</p>
-                              </div>
-                            )}
                             <div className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
                               <p className="font-bold text-slate-500 uppercase mb-2">Metadata Summary</p>
                               <ul className="space-y-1 text-[10px] text-slate-500">
                                 <li>• DB_ID: {log.id}</li>
-                                <li>• SECURITY: SHA-1024_CASCADE_V2</li>
+                                <li>• SECURITY: Military_Grade_Cascade_V2</li>
                                 <li>• MODALITY: {log.title.includes('YouTube') ? 'STREAM' : 'LOCAL_ASSET'}</li>
                                 <li>• ENCODING: UTF-8</li>
                               </ul>

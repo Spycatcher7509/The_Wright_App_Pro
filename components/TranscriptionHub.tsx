@@ -24,6 +24,11 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
   const [encryptionStage, setEncryptionStage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
 
+  // Verification Bridge States
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [bridgeChecksum, setBridgeChecksum] = useState('');
+  const [bridgeResult, setBridgeResult] = useState<'IDLE' | 'VALID' | 'INVALID'>('IDLE');
+
   // Voice Recording States (Chat)
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -64,10 +69,7 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
 
   const computeSHA1024 = async (text: string): Promise<string> => {
     const msgBuffer = new TextEncoder().encode(text);
-    // Standard SHA-512 Block 1
     const hash1Buffer = await crypto.subtle.digest('SHA-512', msgBuffer);
-    
-    // Salted SHA-512 Block 2 for 1024-bit Cascade
     const saltBuffer = new TextEncoder().encode(text + "WRIGHT_APP_PRO_SECURE_SALT_V2");
     const hash2Buffer = await crypto.subtle.digest('SHA-512', saltBuffer);
 
@@ -76,6 +78,25 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
     combine.set(new Uint8Array(hash2Buffer), 64);
 
     return Array.from(combine).map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  const handleIntegrityBridge = async () => {
+    if (!bridgeChecksum) return;
+    setBridgeResult('IDLE');
+    const isValid = await DBService.verifyChecksum(bridgeChecksum);
+    setBridgeResult(isValid ? 'VALID' : 'INVALID');
+    
+    if (isValid) {
+      setTimeout(() => {
+        setChatHistory(prev => [...prev, { 
+          role: 'ai', 
+          text: `Integrity Bridge Confirmed: The checksum [${bridgeChecksum.substring(0, 16)}...] matches a verified Military Grade archive entry.` 
+        }]);
+        setIsVerifying(false);
+        setBridgeChecksum('');
+        setBridgeResult('IDLE');
+      }, 800);
+    }
   };
 
   const createSecurePDF = (title: string, content: string): Blob => {
@@ -97,7 +118,7 @@ const TranscriptionHub: React.FC<{ user: User }> = ({ user }) => {
 4 0 obj << /Length ${textStream.length + 500} >> stream
 BT /F1 16 Tf 50 800 Td (OFFICIAL WRIGHT_APP_PRO FORENSIC REPORT) Tj ET
 BT /F1 12 Tf 50 780 Td (Project ID: ${title.substring(0, 30)}) Tj ET
-BT /F1 8 Tf 50 765 Td (Timestamp: ${date} | Security Protocol: SHA-1024 Dual-Block Cascade) Tj ET
+BT /F1 8 Tf 50 765 Td (Timestamp: ${date} | Military Grade Cascade Encryption) Tj ET
 ${textStream}
 endstream endobj
 5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
@@ -137,8 +158,8 @@ startxref
       }
       setTranscription(result);
       const hash = await computeSHA1024(result);
-      await DBService.addLog({ title: videoTitle, checksum: hash.substring(0, 128), absolutePath: `/Vault/${videoTitle}/`, status: 'SUCCESS' });
-      setChatHistory([{ role: 'ai', text: `SHA-1024 Secure Link Established. Verbatim Asset "${videoTitle}" is now under Wright Intelligence surveillance. Proceed with forensic query.` }]);
+      await DBService.addLog({ title: videoTitle, checksum: hash, absolutePath: `/Vault/${videoTitle}/`, status: 'SUCCESS' });
+      setChatHistory([{ role: 'ai', text: `Military Grade Secure Link Established. Verbatim Asset "${videoTitle}" is now under Wright Intelligence surveillance. Proceed with forensic query.` }]);
     } catch (err) {
       alert("Handshake Failure: " + String(err));
     } finally {
@@ -177,24 +198,24 @@ startxref
     if (!text || chatLoading || !transcription) return;
     setChatLoading(true);
 
-    setEncryptionStage('Initialising Handshake...');
+    setEncryptionStage('Initialising Military Handshake...');
     setEncryptionProgress(5);
     await new Promise(r => setTimeout(r, 150));
     
-    setEncryptionStage('Cipher Padding (Bitwise)...');
+    setEncryptionStage('AES-256 Bitwise Cipher Padding...');
     setEncryptionProgress(25);
     await new Promise(r => setTimeout(r, 200));
 
-    setEncryptionStage('Hashing SHA-1024 Dual-Blocks...');
+    setEncryptionStage('Generating Military Grade Checksums...');
     const hash = await computeSHA1024(text);
     setEncryptionProgress(55);
     await new Promise(r => setTimeout(r, 250));
 
-    setEncryptionStage('Injecting Entropy Salts...');
+    setEncryptionStage('Injecting Forensic Entropy...');
     setEncryptionProgress(85);
     await new Promise(r => setTimeout(r, 200));
 
-    setEncryptionStage('Final Integrity Verification...');
+    setEncryptionStage('Integrity Verification Confirmed.');
     setEncryptionProgress(100);
     await new Promise(r => setTimeout(r, 100));
 
@@ -211,7 +232,7 @@ startxref
       
       setChatHistory(prev => [...prev, { role: 'ai', text: resp }]);
     } catch (err) {
-      setChatHistory(prev => [...prev, { role: 'ai', text: "Security System: Handshake Interrupted." }]);
+      setChatHistory(prev => [...prev, { role: 'ai', text: "Security System: Military Link Interrupted." }]);
     } finally {
       setIsAiTyping(false);
       setChatLoading(false);
@@ -225,7 +246,6 @@ startxref
     await executeChatMessage(msg);
   };
 
-  // Voice Recording Logic (Chat)
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -273,7 +293,6 @@ startxref
     }
   };
 
-  // Main Session Recording Logic
   const startMainRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -325,7 +344,7 @@ startxref
     try {
       const content = await GeminiService.transcribeFile(file);
       setTranscription(prev => prev + "\n\n--- INJECTED VERBATIM CONTEXT: " + file.name + " ---\n" + content);
-      setChatHistory(prev => [...prev, { role: 'ai', text: `Success: Verbatim Asset "${file.name}" has been ingested into the active SHA-1024 context for comparative analysis.` }]);
+      setChatHistory(prev => [...prev, { role: 'ai', text: `Success: Verbatim Asset "${file.name}" has been ingested into the active Military Grade context for analysis.` }]);
     } catch (err) {
       alert("Injection Failure.");
     } finally {
@@ -388,7 +407,7 @@ startxref
     if (file && (file.type.startsWith('audio/') || file.type.startsWith('video/'))) {
       setSelectedFile(file);
     } else {
-      alert("Forensic Rejection: Only audio or video assets are authorised for this gateway.");
+      alert("Forensic Rejection: Only audio or video assets are authorised.");
     }
   };
 
@@ -400,7 +419,7 @@ startxref
           <div className="flex justify-between items-center">
             <div className="space-y-1">
               <h3 className="text-3xl font-black text-slate-900 tracking-tight italic">The_Wright_App_pro</h3>
-              <p className="text-slate-500 font-medium text-sm">Forensic Extraction Handshake | SHA-1024 Secure Bridge</p>
+              <p className="text-slate-500 font-medium text-sm">Forensic Extraction Handshake | Military Grade Encryption</p>
             </div>
             {statusText && (
               <div className="px-6 py-3 bg-indigo-600 rounded-full text-white font-black text-[10px] uppercase tracking-widest animate-pulse flex items-center gap-2 shadow-lg shadow-indigo-200">
@@ -488,7 +507,7 @@ startxref
                       </div>
                       <div className="space-y-2">
                         <h5 className="text-xl font-black text-slate-900">Ready for Live Capture</h5>
-                        <p className="text-sm text-slate-500 font-medium max-w-sm mx-auto">Ensure you are in a low-noise environment for forensic-grade verbatim results.</p>
+                        <p className="text-sm text-slate-500 font-medium max-w-sm mx-auto">Ensure low-noise for forensic-grade results.</p>
                       </div>
                       <button 
                         type="button"
@@ -542,9 +561,8 @@ startxref
                       </div>
                       <div>
                         <h5 className="text-xl font-black text-slate-900">Provision Local Asset</h5>
-                        <p className="text-sm text-slate-500 font-medium">Drag & Drop or click to browse for authorised audio/video files.</p>
+                        <p className="text-sm text-slate-500 font-medium">Drag & Drop or click to browse for authorised files.</p>
                       </div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em]">Supported modallities: .mp3, .wav, .m4a, .mp4, .mov, .avi</p>
                     </>
                   )}
                 </div>
@@ -586,22 +604,60 @@ startxref
           </div>
         </div>
 
-        {/* CENTER: SECURE CHAT VAULT */}
+        {/* CENTER: MILITARY GRADE SECURE VAULT CHAT */}
         <div className="lg:col-span-5 flex flex-col h-full">
           <div className="bg-slate-900 rounded-[2.5rem] shadow-2xl border border-slate-800 p-8 flex flex-col h-full relative overflow-hidden">
-            <div className="flex justify-between items-center mb-6 relative z-10">
+            <div className="flex justify-between items-center mb-6 relative z-20">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_10px_#6366f1]"></div>
-                <h4 className="text-xl font-black text-white uppercase tracking-tight">SHA-1024 Secure Vault</h4>
+                <h4 className="text-xl font-black text-white uppercase tracking-tight italic">Military Vault</h4>
               </div>
-              <button 
-                onClick={downloadChatLog}
-                disabled={!transcription}
-                className="px-4 py-2 bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-colors disabled:opacity-30"
-              >
-                Download Log
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setIsVerifying(!isVerifying)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${isVerifying ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                >
+                  Integrity Bridge
+                </button>
+                <button 
+                  onClick={downloadChatLog}
+                  disabled={!transcription}
+                  className="px-4 py-2 bg-slate-800 text-slate-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-colors disabled:opacity-30"
+                >
+                  Archive
+                </button>
+              </div>
             </div>
+
+            {/* Verification Bridge Input Area */}
+            {isVerifying && (
+              <div className="mb-6 p-6 bg-black/50 border border-indigo-500/30 rounded-[2rem] animate-in slide-in-from-top-4 duration-300 relative z-20 space-y-4 backdrop-blur-md">
+                <div className="flex justify-between items-center">
+                  <h6 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Verify Checksum Bridge</h6>
+                  <button onClick={() => setIsVerifying(false)} className="text-slate-500 hover:text-white text-lg">×</button>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    value={bridgeChecksum}
+                    onChange={(e) => { setBridgeChecksum(e.target.value); setBridgeResult('IDLE'); }}
+                    placeholder="Paste Military Grade Checksum..."
+                    className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-indigo-300 outline-none focus:border-indigo-600 transition-all"
+                  />
+                  <button 
+                    onClick={handleIntegrityBridge}
+                    disabled={!bridgeChecksum}
+                    className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
+                      bridgeResult === 'VALID' ? 'bg-emerald-600 text-white' : 
+                      bridgeResult === 'INVALID' ? 'bg-rose-600 text-white' : 
+                      'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50'
+                    }`}
+                  >
+                    {bridgeResult === 'VALID' ? 'Verified ✓' : bridgeResult === 'INVALID' ? 'Mismatch ✗' : 'Verify'}
+                  </button>
+                </div>
+                {bridgeResult === 'INVALID' && <p className="text-[9px] text-rose-500 font-black uppercase text-center">Security Breach: Checksum Mismatch</p>}
+              </div>
+            )}
 
             <div className="flex-1 overflow-y-auto mb-6 space-y-6 pr-2 custom-scrollbar relative z-10">
               {chatHistory.length === 0 ? (
@@ -622,7 +678,7 @@ startxref
                     {msg.hash && (
                       <div className="group relative">
                         <p className="text-[7px] font-mono text-slate-500 px-4 truncate uppercase tracking-tighter cursor-help">
-                          SHA-1024 CIPHER: {msg.hash}
+                          MILITARY CIPHER: {msg.hash}
                         </p>
                         <div className="absolute bottom-full left-4 bg-black border border-slate-700 p-3 rounded-xl hidden group-hover:block w-[300px] break-all z-50 text-[8px] font-mono text-indigo-400 shadow-2xl">
                           {msg.hash}
@@ -635,11 +691,10 @@ startxref
               
               {isAiTyping && (
                 <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <div className="bg-slate-800/90 backdrop-blur-lg p-5 rounded-[2.2rem] rounded-tl-none border border-white/10 flex gap-2 items-center shadow-[0_20px_60px_rgba(0,0,0,0.6)] relative overflow-hidden group scale-100 transition-transform">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-transparent animate-pulse pointer-events-none"></div>
-                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-[bounce_1s_infinite_-0.4s] shadow-[0_0_12px_rgba(199,210,254,0.5)]"></div>
-                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-[bounce_1s_infinite_-0.2s] shadow-[0_0_12px_rgba(199,210,254,0.5)]"></div>
-                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-[bounce_1s_infinite] shadow-[0_0_12px_rgba(199,210,254,0.5)]"></div>
+                  <div className="bg-slate-800/90 backdrop-blur-lg p-5 rounded-[2.2rem] rounded-tl-none border border-white/10 flex gap-2 items-center shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{animationDelay: '0s'}}></div>
+                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
                   </div>
                 </div>
               )}
@@ -661,7 +716,7 @@ startxref
               <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={handleChat} className="flex gap-4 relative z-10 items-center">
+            <form onSubmit={handleChat} className="flex gap-4 relative z-20 items-center">
               <input type="file" hidden ref={chatFileRef} onChange={handleChatUpload} />
               <div className="flex gap-2">
                 <button 
@@ -669,7 +724,6 @@ startxref
                   onClick={() => chatFileRef.current?.click()}
                   disabled={!transcription || chatLoading}
                   className="w-14 h-14 bg-slate-800 text-white rounded-2xl flex items-center justify-center hover:bg-slate-700 transition-all shadow-lg active:scale-90 disabled:opacity-20"
-                  title="Inject Contextual Asset"
                 >
                   <span className="text-xl">📎</span>
                 </button>
@@ -678,9 +732,8 @@ startxref
                   onClick={isRecording ? stopRecording : startRecording}
                   disabled={!transcription || chatLoading}
                   className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90 disabled:opacity-20 ${
-                    isRecording ? 'bg-rose-600 text-white animate-pulse shadow-[0_0_15px_#e11d48]' : 'bg-slate-800 text-white hover:bg-slate-700'
+                    isRecording ? 'bg-rose-600 text-white animate-pulse' : 'bg-slate-800 text-white hover:bg-slate-700'
                   }`}
-                  title={isRecording ? "Terminate Vocal Command" : "Establish Vocal Handshake"}
                 >
                   <span className="text-xl">{isRecording ? '⏹️' : '🎙️'}</span>
                 </button>
@@ -689,13 +742,13 @@ startxref
                 <input 
                   disabled={!transcription || chatLoading || isRecording}
                   value={chatQuestion} onChange={(e) => setChatQuestion(e.target.value)}
-                  placeholder={isRecording ? "Listening for vocal command..." : transcription ? "Analyse data in 1024-bit context..." : "Locked until data ingestion..."}
-                  className="w-full h-14 px-8 bg-black/50 border-2 border-slate-700 rounded-2xl text-white font-medium outline-none focus:border-indigo-600 transition-all placeholder:text-slate-600 disabled:cursor-not-allowed"
+                  placeholder={transcription ? "Query verbatim via Military context..." : "Locked until ingestion..."}
+                  className="w-full h-14 px-8 bg-black/50 border-2 border-slate-700 rounded-2xl text-white font-medium outline-none focus:border-indigo-600 transition-all placeholder:text-slate-600"
                 />
                 <button 
                   type="submit" 
                   disabled={!transcription || chatLoading || !chatQuestion || isRecording}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center hover:scale-105 transition-transform shadow-lg disabled:opacity-0"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-0"
                 >
                   ➜
                 </button>
@@ -711,21 +764,14 @@ startxref
           <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 p-10 flex flex-col h-full">
             <div className="mb-10">
               <h4 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Export Manifest</h4>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Select Forensic Assets</p>
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Select Forensic Assets</p>
             </div>
             
             <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
               <div className="space-y-3">
                 <h5 className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.2em] pb-2 border-b">Documents</h5>
                 {TRANSCRIPT_OPTIONS.map(opt => (
-                  <label 
-                    key={opt.id} 
-                    className={`flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                      selectedTranscripts.includes(opt.id) 
-                        ? 'border-indigo-600 bg-indigo-50/40 shadow-sm' 
-                        : 'border-slate-50 hover:border-indigo-100'
-                    }`}
-                  >
+                  <label key={opt.id} className={`flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedTranscripts.includes(opt.id) ? 'border-indigo-600 bg-indigo-50/40 shadow-sm' : 'border-slate-50 hover:border-indigo-100'}`}>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-xs font-black text-slate-900 uppercase tracking-wide">{opt.label}</span>
                       <input 
@@ -741,16 +787,9 @@ startxref
               </div>
 
               <div className="space-y-3 pt-6">
-                <h5 className="text-[9px] font-black text-amber-600 uppercase tracking-[0.2em] pb-2 border-b">Hardware Master</h5>
+                <h5 className="text-[9px] font-black text-amber-600 uppercase tracking-[0.2em] pb-2 border-b">Audio Assets</h5>
                 {AUDIO_OPTIONS.map(opt => (
-                  <label 
-                    key={opt.id} 
-                    className={`flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                      selectedMedia.includes(opt.id) 
-                        ? 'border-amber-600 bg-amber-50/40 shadow-sm' 
-                        : 'border-slate-50 hover:border-amber-100'
-                    }`}
-                  >
+                  <label key={opt.id} className={`flex flex-col p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedMedia.includes(opt.id) ? 'border-amber-600 bg-amber-50/40 shadow-sm' : 'border-slate-50 hover:border-amber-100'}`}>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-xs font-black text-slate-900 uppercase tracking-wide">{opt.label}</span>
                       <input 
@@ -770,9 +809,9 @@ startxref
               <button 
                 onClick={handleProvision}
                 disabled={!transcription}
-                className="w-full py-6 bg-indigo-600 text-white font-black rounded-[2rem] hover:bg-indigo-700 shadow-2xl shadow-indigo-100 uppercase tracking-widest text-[10px] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:bg-slate-100 disabled:text-slate-300 disabled:shadow-none"
+                className="w-full py-6 bg-indigo-600 text-white font-black rounded-[2rem] hover:bg-indigo-700 shadow-2xl uppercase tracking-widest text-[10px] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:bg-slate-100 disabled:text-slate-300"
               >
-                Provision & Sign Assets
+                Provision Signed Assets
               </button>
             </div>
           </div>

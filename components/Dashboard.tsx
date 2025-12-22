@@ -29,7 +29,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Transcriptions</p>
           <p className="text-5xl font-black text-slate-900 italic tracking-tighter">{stats.logs}</p>
           <div className="mt-6 flex items-center gap-2 text-indigo-600 text-[10px] font-black uppercase">
-            <span className="bg-indigo-50 px-3 py-1 rounded-full">SHA-1024</span> Active Archive
+            <span className="bg-indigo-50 px-3 py-1 rounded-full">Military Grade</span> Active Archive
           </div>
         </div>
         <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-200 transition-all hover:scale-[1.02] cursor-default">
@@ -43,7 +43,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Identities Provisioned</p>
           <p className="text-5xl font-black text-slate-900 italic tracking-tighter">{stats.users}</p>
           <div className="mt-6 flex items-center gap-2 text-indigo-600 text-[10px] font-black uppercase">
-            <span className="bg-indigo-50 px-3 py-1 rounded-full">Vault Safe</span> 1024-bit Encrypted
+            <span className="bg-indigo-50 px-3 py-1 rounded-full">Vault Safe</span> Military Encrypted
           </div>
         </div>
         <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-200 transition-all hover:scale-[1.02] cursor-default">
@@ -65,7 +65,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
             <h3 className="text-3xl font-black italic tracking-tighter">Welcome to the Wright Intelligence Node</h3>
           </div>
           <p className="text-slate-400 max-w-2xl text-sm leading-relaxed font-medium">
-            The_Wright_App_pro is running at peak capacity. All forensic extractions are currently being processed with forensic precision and SHA-1024 dual-block integrity verification. Your local database is synchronised and secure.
+            The_Wright_App_pro is running at peak capacity. All forensic extractions are currently being processed with Military Grade Cascade integrity verification. Your local database is synchronised and secure.
           </p>
           <div className="flex gap-4 pt-4">
             <button className="px-8 py-3 bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl hover:bg-slate-50 transition-all italic">

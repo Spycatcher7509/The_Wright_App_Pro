@@ -14,6 +14,7 @@ export const handler: Handler = async (event) => {
   try {
     const { fromEmail, message, ticketId } = JSON.parse(event.body || '{}');
 
+    // Updated 'from' to verified domain and 'to' to the requested support address
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -21,15 +22,15 @@ export const handler: Handler = async (event) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'The_Wright_App_pro <support@wrightapp.pro>',
-        to: 'spike.wright.developer@gmail.com',
+        from: 'The_Wright_App_pro <support@mysecureapp.co.uk>',
+        to: 'accounts@thewrightsupport.com',
         reply_to: fromEmail,
         subject: `[${ticketId}] SUPPORT REQUEST: ${fromEmail}`,
         html: `
           <div style="font-family: sans-serif; padding: 40px; border: 1px solid #e2e8f0; border-radius: 24px; background-color: #ffffff; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
             <div style="margin-bottom: 30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px;">
               <h2 style="color: #4f46e5; margin: 0; font-size: 24px; font-style: italic; font-weight: 900;">The_Wright_App_pro</h2>
-              <p style="font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.2em; margin-top: 5px;">Forensic Dispatch Protocol | 1024-bit Bridge</p>
+              <p style="font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.2em; margin-top: 5px;">Forensic Dispatch Protocol | Military Grade Encryption</p>
             </div>
             
             <div style="margin-bottom: 25px;">
@@ -46,7 +47,7 @@ export const handler: Handler = async (event) => {
             </div>
 
             <div style="margin-top: 40px; border-top: 1px solid #f1f5f9; pt: 20px; text-align: center;">
-              <p style="font-size: 9px; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.3em; margin: 0;">Verified SHA-1024 Dual-Block Handshake | Spike Wright</p>
+              <p style="font-size: 9px; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.3em; margin: 0;">Verified Military Grade Dual-Block Handshake | Spike Wright</p>
             </div>
           </div>
         `

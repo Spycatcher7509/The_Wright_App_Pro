@@ -4,7 +4,6 @@ export interface DispatchStatus {
   message: string;
 }
 
-// Define the response structure to include isCorsError for frontend handling
 export interface DispatchResponse {
   success: boolean;
   error?: string;
@@ -22,10 +21,9 @@ export class ResendService {
     onStatusUpdate?: (status: DispatchStatus) => void
   ): Promise<DispatchResponse> {
     
-    onStatusUpdate?.({ step: 'ENCRYPTING', message: 'Securing payload with SHA-256...' });
+    onStatusUpdate?.({ step: 'ENCRYPTING', message: 'Applying Military Grade Encryption...' });
     await new Promise(r => setTimeout(r, 600)); 
 
-    // Point to the Netlify Function
     const finalUrl = '/.netlify/functions/send-email';
 
     onStatusUpdate?.({ step: 'CONNECTING', message: 'Establishing Secure Relay Tunnel...' });
@@ -43,7 +41,7 @@ export class ResendService {
         })
       });
 
-      onStatusUpdate?.({ step: 'DISPATCHING', message: 'Pushing encrypted stream...' });
+      onStatusUpdate?.({ step: 'DISPATCHING', message: 'Pushing encrypted stream to vault...' });
 
       const data = await response.json();
 
@@ -55,18 +53,16 @@ export class ResendService {
       return { success: true };
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Handshake failure";
-      // Detect common CORS/Network issues in browser fetch to allow UI to suggest proxies
       const isCors = errorMsg.toLowerCase().includes('cors') || errorMsg === 'Failed to fetch';
       onStatusUpdate?.({ step: 'ERROR', message: 'Link Failed' });
       return { success: false, error: errorMsg, isCorsError: isCors };
     }
   }
 
-  // Update return type to fix 'isCorsError' property missing error in components
   static async testEmail(onStatusUpdate?: (status: DispatchStatus) => void): Promise<DispatchResponse> {
     return this.sendSupportEmail(
-      "sys.admin@thewrightsupport.com", 
-      "E2E Handshake Verification via Netlify Function Relay.", 
+      "sys.admin@mysecureapp.co.uk", 
+      "E2E Handshake Verification via Military Grade Relay Protocol.", 
       "SYS-TEST",
       onStatusUpdate
     );

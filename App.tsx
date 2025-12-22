@@ -116,7 +116,7 @@ const App: React.FC = () => {
             <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-xl shadow-indigo-200">🍷</div>
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tighter italic">The_Wright_App_pro</h1>
-              <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Forensic Entry Protocol V2 | SHA-1024 Enabled</p>
+              <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Forensic Entry Protocol V2 | Military Grade Encryption</p>
             </div>
           </div>
 
@@ -157,7 +157,7 @@ const App: React.FC = () => {
                 onChange={(e) => setIsTicked(e.target.checked)}
               />
               <label htmlFor="tickbox" className="text-[10px] text-slate-500 font-bold uppercase tracking-tight leading-normal cursor-pointer">
-                I acknowledge that this agreement is binding under UK Common Law and that I am entering a secure forensic environment protected by SHA-1024 encryption.
+                I acknowledge that this agreement is binding under UK Law and that I am entering a secure forensic environment protected by Military Grade Cascade encryption.
               </label>
             </div>
 
@@ -214,14 +214,14 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-12 relative">
         <header className="flex flex-col items-center mb-16 text-center">
           <div className="space-y-3">
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.6em] animate-in fade-in slide-in-from-top duration-1000">
-              19th February 2025
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.6em]">
+              {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
-            <h1 className="text-6xl font-black text-slate-900 tracking-tighter italic leading-none drop-shadow-sm selection:bg-indigo-600 selection:text-white">
+            <h1 className="text-6xl font-black text-slate-900 tracking-tighter italic leading-none drop-shadow-sm">
               {APP_TITLE}
             </h1>
             <div className="flex items-center justify-center gap-3 pt-2">
-              <div className="flex items-center gap-3 px-6 py-2.5 bg-white rounded-full border border-slate-200 shadow-sm shadow-indigo-100/50 transition-all hover:border-indigo-200">
+              <div className="flex items-center gap-3 px-6 py-2.5 bg-white rounded-full border border-slate-200 shadow-sm shadow-indigo-100/50">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
