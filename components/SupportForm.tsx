@@ -12,33 +12,47 @@ const SupportForm: React.FC<{ user: User }> = ({ user }) => {
   const [lastTicket, setLastTicket] = useState('');
   const [errorDetails, setErrorDetails] = useState('');
 
-  const isRelayed = !!localStorage.getItem('wright_cors_proxy');
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccess(false);
     setErrorDetails('');
-
+    
     try {
+      // 1. Create ticket in local database for user reference
       const ticket = await DBService.createTicket(subject, message);
       setLastTicket(ticket.id);
       
-      const result = await ResendService.sendSupportEmail(
-        user.email, 
-        message, 
-        ticket.id, 
+      // 2. Submit to Netlify Forms (Parallel - Dashboard tracking)
+      const netlifyFormData = new URLSearchParams();
+      netlifyFormData.append('form-name', 'contact');
+      netlifyFormData.append('name', user.name || 'Authorised Identity');
+      netlifyFormData.append('email', user.email);
+      netlifyFormData.append('subject', `[${ticket.id}] ${subject}`);
+      netlifyFormData.append('message', message);
+
+      fetch('/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: netlifyFormData.toString(),
+      }).catch(err => console.error("Netlify Audit Trace Failed", err));
+
+      // 3. Dispatch via Resend.com for actual Outbound Email Delivery
+      const resendResult = await ResendService.sendSupportEmail(
+        user.email,
+        message,
+        ticket.id,
         (status) => setDispatchStatus(status)
       );
-      
-      if (result.success) {
-        setSuccess(true);
-      } else {
-        setErrorDetails(result.error || 'Unknown Handshake Failure');
-        setDispatchStatus({ step: 'ERROR', message: result.isCorsError ? 'CORS_BLOCKED' : 'LINK_FAILED' });
+
+      if (!resendResult.success) {
+        throw new Error(resendResult.error || 'Resend Gateway Handshake Failed');
       }
+
+      setSuccess(true);
     } catch (err) {
-      setErrorDetails(String(err));
-      setDispatchStatus({ step: 'ERROR', message: 'SYSTEM_EXCEPTION' });
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      setErrorDetails(errorMsg);
+      setDispatchStatus({ step: 'ERROR', message: 'DISPATCH_FAILED' });
     }
   };
 
@@ -48,7 +62,7 @@ const SupportForm: React.FC<{ user: User }> = ({ user }) => {
         <div className="w-24 h-24 bg-emerald-50 text-emerald-600 rounded-[2.5rem] flex items-center justify-center mx-auto text-5xl shadow-xl shadow-emerald-100">✓</div>
         <div className="space-y-3">
           <h3 className="text-4xl font-black text-slate-900 italic tracking-tighter">Dispatch Success</h3>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Ticket {lastTicket} Synced via {isRelayed ? 'Relay Tunnel' : 'Direct Link'}</p>
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Ticket {lastTicket} Synced via Resend/Netlify Gateway</p>
         </div>
         <button 
           onClick={() => { setSuccess(false); setSubject(''); setMessage(''); setDispatchStatus({ step: 'IDLE', message: '' }); }}
@@ -65,10 +79,15 @@ const SupportForm: React.FC<{ user: User }> = ({ user }) => {
       <div className="flex justify-between items-start relative z-10">
         <div className="space-y-2">
           <h3 className="text-4xl font-black text-slate-900 italic tracking-tighter">Support Hub</h3>
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Resend Dispatch Protocol</p>
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Professional Dispatch Protocol</p>
         </div>
-        <div className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border-2 transition-all ${isRelayed ? 'border-emerald-100 bg-emerald-50 text-emerald-600' : 'border-slate-100 bg-slate-50 text-slate-400'}`}>
-          {isRelayed ? 'Relay Mode: Active' : 'Direct Mode: Browser'}
+        <div className="flex flex-col items-end gap-2">
+           <div className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border-2 border-indigo-100 bg-indigo-50 text-indigo-600">
+             Relay: Resend API
+           </div>
+           <div className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border-2 border-emerald-100 bg-emerald-50 text-emerald-600">
+             Audit: Netlify Forms
+           </div>
         </div>
       </div>
 
@@ -98,12 +117,10 @@ const SupportForm: React.FC<{ user: User }> = ({ user }) => {
 
         {errorDetails && (
           <div className="p-8 bg-rose-50 border-2 border-rose-100 rounded-[2.5rem] space-y-4 animate-in fade-in slide-in-from-top-4">
-            <h6 className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Protocol Handshake Failed</h6>
+            <h6 className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Dispatch Protocol Interrupted</h6>
             <p className="text-xs text-rose-800 font-medium leading-relaxed">{errorDetails}</p>
             {errorDetails.includes('CORS') && (
-              <p className="text-[9px] text-rose-600 font-black uppercase tracking-widest pt-2 border-t border-rose-200">
-                Action: Configure a CORS Proxy in System Settings.
-              </p>
+              <p className="text-[10px] text-indigo-600 font-bold uppercase italic">Suggestion: Visit 'Settings' to enable a CORS Relay Gateway.</p>
             )}
           </div>
         )}
@@ -113,7 +130,7 @@ const SupportForm: React.FC<{ user: User }> = ({ user }) => {
           disabled={dispatchStatus.step !== 'IDLE' && dispatchStatus.step !== 'ERROR'}
           className="w-full py-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2.5rem] font-black uppercase tracking-[0.3em] text-[11px] shadow-2xl shadow-indigo-100 transition-all active:scale-[0.98] disabled:opacity-50"
         >
-          {dispatchStatus.step === 'IDLE' || dispatchStatus.step === 'ERROR' ? 'Execute Dispatch Handshake' : dispatchStatus.message}
+          {dispatchStatus.step === 'IDLE' || dispatchStatus.step === 'ERROR' ? 'Execute Dual-Dispatch Handshake' : dispatchStatus.message}
         </button>
       </form>
       

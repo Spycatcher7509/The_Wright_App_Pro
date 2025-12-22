@@ -11,6 +11,9 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout, hasApiKey }) => {
+  // Graceful fallback for standalone deployments where the key is in process.env but not the bridge
+  const isEngineLive = hasApiKey || (!!process.env.API_KEY && process.env.API_KEY !== 'undefined');
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'profile', label: 'My Identity', icon: '👤' },
@@ -39,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
       <div className="p-6">
         <div className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20 text-sm">🍷</div>
-          <span className="font-bold text-white tracking-tight italic">Wright_App_pro</span>
+          <span className="font-bold text-white tracking-tight italic">The_Wright_App_pro</span>
         </div>
         
         <nav className="space-y-1 overflow-y-auto custom-scrollbar flex-1 pr-1" style={{maxHeight: 'calc(100vh - 380px)'}}>
@@ -63,9 +66,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
       <div className="mt-auto p-6 border-t border-slate-800 space-y-4">
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
           <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Vault Link Status</p>
-          <div className={`flex items-center gap-2 text-xs font-bold ${hasApiKey ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
-            <span className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
-            {hasApiKey ? 'TUNNEL_ENCRYPTED' : 'KEY_NOT_SELECTED'}
+          <div className={`flex items-center gap-2 text-xs font-bold ${isEngineLive ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
+            <span className={`w-2 h-2 rounded-full ${isEngineLive ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+            {isEngineLive ? 'TUNNEL_ENCRYPTED' : 'KEY_NOT_SELECTED'}
           </div>
         </div>
         

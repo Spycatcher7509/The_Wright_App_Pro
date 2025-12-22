@@ -27,6 +27,11 @@ const Settings: React.FC<{ user: User }> = ({ user }) => {
     alert("Relay Gateway Configured.");
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // Simple visual feedback could be added here
+  };
+
   const runEmailTest = async () => {
     setTestStatus('LOADING');
     setErrorMessage('');
@@ -57,7 +62,7 @@ const Settings: React.FC<{ user: User }> = ({ user }) => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Data Integrity */}
         <section className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-200 space-y-8">
@@ -101,44 +106,73 @@ const Settings: React.FC<{ user: User }> = ({ user }) => {
             >
               Update Relay Configuration
             </button>
-            <p className="text-[9px] text-slate-400 italic text-center px-4">
-              Tip: Use a proxy like "cors-anywhere" for local testing. In production, use a Netlify Function.
+          </div>
+        </section>
+
+        {/* SMTP Protocol Section */}
+        <section className="bg-slate-950 p-10 rounded-[2.5rem] shadow-2xl border border-white/5 space-y-8 lg:col-span-1">
+          <div className="space-y-1">
+            <h3 className="text-2xl font-black italic tracking-tighter text-white">SMTP Configuration</h3>
+            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Resend Outbound Protocol Reference</p>
+          </div>
+
+          <div className="space-y-5">
+            {[
+              { label: 'Host', value: 'smtp.resend.com' },
+              { label: 'Port', value: '465 (SSL) / 587 (TLS)' },
+              { label: 'User', value: 'resend' },
+              { label: 'Password', value: '••••••••••••••••' },
+            ].map((item, idx) => (
+              <div key={idx} className="space-y-2">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">{item.label}</label>
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 font-mono text-xs text-indigo-300">
+                    {item.value}
+                  </div>
+                  <button 
+                    onClick={() => copyToClipboard(item.value)}
+                    className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-slate-400 transition-colors"
+                    title="Copy to Clipboard"
+                  >
+                    📋
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl">
+            <p className="text-[10px] text-indigo-300 leading-relaxed italic">
+              Note: This browser-based suite uses the <strong>REST API</strong> for dispatch. SMTP is provided here for your backend integration reference.
             </p>
           </div>
         </section>
 
-        {/* API Integration */}
-        <section className="lg:col-span-2 bg-slate-900 p-12 rounded-[3.5rem] shadow-2xl space-y-10 relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row justify-between gap-10">
-            <div className="space-y-4 max-w-xl">
-              <h3 className="text-3xl font-black text-white italic tracking-tighter">Resend.com Integrity Handshake</h3>
-              <p className="text-slate-400 text-sm font-medium leading-relaxed">
-                Perform a bitwise security diagnostic of the outbound email gateway. This test ensures your API key is correctly mapped and the relay tunnel is established.
-              </p>
-              <button 
-                onClick={runEmailTest}
-                disabled={testStatus === 'LOADING'}
-                className={`px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-                  testStatus === 'SUCCESS' ? 'bg-emerald-500 text-white' : 
-                  testStatus === 'ERROR' ? 'bg-rose-600 text-white' :
-                  testStatus === 'LOADING' ? 'bg-slate-700 text-slate-400 animate-pulse' :
-                  'bg-indigo-600 text-white hover:bg-indigo-700'
-                }`}
-              >
-                {testStatus === 'LOADING' ? 'Handshaking...' : testStatus === 'SUCCESS' ? 'Protocol Verified' : testStatus === 'ERROR' ? 'Handshake Failed' : 'Execute Diagnostic'}
-              </button>
+        {/* API Integration Diagnostics */}
+        <section className="bg-indigo-600 p-10 rounded-[2.5rem] shadow-2xl space-y-10 lg:col-span-1">
+          <div className="space-y-4">
+            <h3 className="text-2xl font-black text-white italic tracking-tighter">REST Gateway Lab</h3>
+            <p className="text-indigo-100 text-sm font-medium leading-relaxed">
+              Verify the active API handshake status. This ensures your RESEND_API_KEY is authorised for the current domain.
+            </p>
+            <div className="flex-1 bg-black/20 rounded-2xl p-6 font-mono text-[10px] text-indigo-200 space-y-1">
+              <p>PROTOCOL: HTTPS / REST</p>
+              <p>ENDPOINT: api.resend.com/emails</p>
+              <p>STATUS: <span className={testStatus === 'SUCCESS' ? 'text-emerald-300' : 'text-indigo-100'}>{testStatus}</span></p>
+              {errorMessage && <p className="text-rose-300 mt-2 truncate">ERR: {errorMessage}</p>}
             </div>
-            
-            <div className="flex-1 bg-black/40 rounded-[2rem] p-8 border border-white/5 font-mono text-[10px] text-indigo-300 space-y-2">
-              <p className="text-slate-500"># System Outbound Manifest</p>
-              <p>GATEWAY: api.resend.com</p>
-              <p>RELAY: {corsProxy || 'DIRECT_LINK'}</p>
-              <p>STATUS: {testStatus}</p>
-              {errorMessage && <p className="text-rose-400 mt-4">ERROR_TRACE: {errorMessage}</p>}
-            </div>
+            <button 
+              onClick={runEmailTest}
+              disabled={testStatus === 'LOADING'}
+              className="w-full py-5 bg-white text-indigo-600 font-black rounded-2xl shadow-2xl hover:bg-slate-50 transition-all uppercase tracking-widest text-[10px] active:scale-95 disabled:opacity-50"
+            >
+              {testStatus === 'LOADING' ? 'Handshaking...' : 'Execute API Handshake'}
+            </button>
           </div>
-          <div className="absolute top-0 right-0 p-12 text-9xl font-black text-white/5 pointer-events-none italic">API</div>
         </section>
+      </div>
+      
+      <div className="text-center">
+        <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.4em] italic opacity-50">Secure Environment V1.0.8-UK_PRO</p>
       </div>
     </div>
   );
