@@ -22,8 +22,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     { id: 'tickets', label: 'View Tickets', icon: '🎫' },
     { id: 'support', label: 'Support Hub', icon: '📩' },
     { id: 'diagnostics', label: 'Diagnostics Lab', icon: '🧬' },
-    { id: 'admin', label: 'Command Centre', icon: '🛠️', roleRequired: ['ADMIN', 'SUPER_ADMIN'] },
-    { id: 'settings', label: 'System Configuration', icon: '⚙️', roleRequired: ['ADMIN', 'SUPER_ADMIN'] },
+    { id: 'admin', label: 'Command Centre', icon: '🛠️', roleRequired: ['LOCAL_ADMIN', 'SUPER_ADMIN'] },
+    { id: 'settings', label: 'System Configuration', icon: '⚙️', roleRequired: ['LOCAL_ADMIN', 'SUPER_ADMIN'] },
   ];
 
   const filteredMenu = menuItems.filter(item => {

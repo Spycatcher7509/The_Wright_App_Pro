@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { User } from '../types';
 
 const UserGuide: React.FC<{ user: User }> = ({ user }) => {
-  const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+  // Fix: UserRole does not contain 'ADMIN', it uses 'LOCAL_ADMIN' or 'SUPER_ADMIN'
+  const isAdmin = user.role === 'LOCAL_ADMIN' || user.role === 'SUPER_ADMIN';
   const [activeSection, setActiveSection] = useState('overview');
 
   const standardSections = [

@@ -134,7 +134,7 @@ const AdminPanel: React.FC = () => {
                         alt="" 
                         className={`w-16 h-16 rounded-[1.5rem] border-2 ${
                           u.role === 'SUPER_ADMIN' ? 'border-amber-500 shadow-amber-100' : 
-                          u.role === 'ADMIN' ? 'border-indigo-500 shadow-indigo-100' : 
+                          u.role === 'LOCAL_ADMIN' ? 'border-indigo-500 shadow-indigo-100' : 
                           'border-slate-200'
                         } object-cover bg-slate-100 shadow-xl transition-transform group-hover:scale-110`}
                       />
@@ -149,7 +149,7 @@ const AdminPanel: React.FC = () => {
                 <td className="px-10 py-8">
                   <span className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-sm ${
                     u.role === 'SUPER_ADMIN' ? 'bg-amber-100 text-amber-700' : 
-                    u.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-700' : 
+                    u.role === 'LOCAL_ADMIN' ? 'bg-indigo-100 text-indigo-700' : 
                     'bg-slate-100 text-slate-500'
                   }`}>
                     {u.role.replace('_', ' ')}
@@ -223,9 +223,9 @@ const AdminPanel: React.FC = () => {
                     onChange={(e) => setRole(e.target.value as UserRole)}
                     className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:border-indigo-600 outline-none font-black text-[10px] uppercase tracking-widest italic"
                   >
-                    <option value="STANDARD">Standard Identity</option>
-                    <option value="ADMIN">Administrative Identity</option>
-                    <option value="SUPER_ADMIN">Super-User Root</option>
+                    <option value="STANDARD">Standard User</option>
+                    <option value="LOCAL_ADMIN">Local Admin</option>
+                    <option value="SUPER_ADMIN">SuperAdmin</option>
                   </select>
                 </div>
                 <div className="space-y-2">

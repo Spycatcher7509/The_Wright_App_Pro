@@ -158,7 +158,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-600 outline-none transition-all font-bold"
-                  placeholder="accounts@thewrightsupport.com"
+                  placeholder="1@1.com"
                 />
               </div>
               
@@ -175,7 +175,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-600 outline-none transition-all font-bold"
-                  placeholder="••••••••"
+                  placeholder="100 character"
                 />
               </div>
 
