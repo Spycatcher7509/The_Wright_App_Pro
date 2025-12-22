@@ -74,7 +74,8 @@ export class ResendService {
       return { success: true, isRelayed: !!proxy };
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Handshake failure";
-      const isCors = errorMsg.includes("fetch") || errorMsg === "Failed to fetch" || (proxy && errorMsg.includes("403"));
+      // Ensure isCors is a strict boolean to satisfy TypeScript return type
+      const isCors = !!(errorMsg.includes("fetch") || errorMsg === "Failed to fetch" || (proxy && errorMsg.includes("403")));
       
       onStatusUpdate?.({ step: 'ERROR', message: isCors ? 'CORS Intercept' : 'Link Failed' });
       
