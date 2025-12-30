@@ -1,3 +1,4 @@
+
 export interface DispatchStatus {
   step: 'IDLE' | 'ENCRYPTING' | 'CONNECTING' | 'DISPATCHING' | 'SUCCESS' | 'ERROR';
   message: string;
@@ -6,15 +7,13 @@ export interface DispatchStatus {
 export interface DispatchResponse {
   success: boolean;
   error?: string;
-  isCorsError?: boolean;
   statusCode?: number;
   rawResponse?: any;
 }
 
-export class ResendService {
+export class DispatchService {
   /**
-   * Dispatches email via Netlify Function Relay.
-   * toEmail is optional; if omitted, the relay defaults to the admin support vault.
+   * Dispatches forensic payloads via the SendGrid-backed Netlify Relay.
    */
   static async sendEmail(
     fromEmail: string, 
@@ -72,15 +71,10 @@ export class ResendService {
     }
   }
 
-  // Deprecated shim for existing code, points to new sendEmail
-  static async sendSupportEmail(from: string, msg: string, tid: string, update?: any) {
-    return this.sendEmail(from, msg, tid, undefined, update);
-  }
-
-  static async testEmail(onStatusUpdate?: (status: DispatchStatus) => void): Promise<DispatchResponse> {
+  static async testDispatch(onStatusUpdate?: (status: DispatchStatus) => void): Promise<DispatchResponse> {
     return this.sendEmail(
-      "sys.admin@mysecureapp.co.uk", 
-      "E2E Integrity Test.", 
+      "sys.admin@wrightapp.pro", 
+      "SendGrid E2E Integrity Test.", 
       "SYS-TEST",
       undefined,
       onStatusUpdate

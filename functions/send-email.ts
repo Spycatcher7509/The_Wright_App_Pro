@@ -1,113 +1,92 @@
-export async function handler(event) {
-  // CORS Headers
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*", // Change "*" to your specific domain in production for better security
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
 
-  // 1. Handle Preflight Options
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 204, headers: corsHeaders, body: "" };
-  }
+import type { Handler } from '@netlify/functions';
+import sgMail from '@sendgrid/mail';
 
-  // 2. Reject non-POST methods
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, headers: corsHeaders, body: "Method Not Allowed" };
-  }
-
-  // 3. Load Environment Variables
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM;
-  const defaultTo = process.env.CONTACT_TO;
-
-  if (!apiKey || !from) {
-    console.error("Missing Env Vars: RESEND_API_KEY or RESEND_FROM");
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ ok: false, error: "Server configuration error" }),
+/**
+ * THE_WRIGHT_APP_PRO: SENDGRID DISPATCH RELAY
+ * This function routes forensic payloads via the SendGrid Master API.
+ * 
+ * REQUIRED ENV VARS:
+ * - SENDGRID_API_KEY: The verified SendGrid Master Key.
+ * - SENDGRID_FROM_EMAIL: The verified sender address (e.g. support@wrightapp.pro).
+ */
+export const handler: Handler = async (event) => {
+  if (event.httpMethod !== 'POST') {
+    return { 
+      statusCode: 405, 
+      body: JSON.stringify({ message: 'PROTOCOL_ERROR: Only POST is authorised.' }) 
     };
   }
 
-  // 4. Parse Body
-  let payload;
-  try {
-    payload = JSON.parse(event.body || "{}");
-  } catch {
-    return { statusCode: 400, headers: corsHeaders, body: "Invalid JSON" };
-  }
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const verifiedFrom = process.env.SENDGRID_FROM_EMAIL || 'support@wrightapp.pro';
 
-  const to = payload.to ?? defaultTo;
-  const subject = (payload.subject ?? "").toString().trim();
-  const message = (payload.message ?? "").toString().trim();
-  const replyTo = (payload.replyTo ?? "").toString().trim();
-
-  // 5. Validate Input
-  if (!to || !subject || !message) {
-    return {
-      statusCode: 400,
-      headers: corsHeaders,
-      body: JSON.stringify({ ok: false, error: "Missing required fields: to, subject, or message" }),
+  if (!apiKey) {
+    console.error("[CRITICAL] SENDGRID_API_KEY missing from Netlify environment.");
+    return { 
+      statusCode: 500, 
+      body: JSON.stringify({ message: 'VAULT_ERROR: SendGrid Security Key is not provisioned.' }) 
     };
   }
 
-  // 6. Construct Resend Payload
-  const resendBody = {
-    from,
-    to: Array.isArray(to) ? to : [to],
-    subject,
-    html: `<div style="font-family:system-ui,Segoe UI,Roboto,Arial">
-             <h3>${escapeHtml(subject)}</h3>
-             <p style="white-space:pre-wrap">${escapeHtml(message)}</p>
-           </div>`,
-    text: message,
-    ...(replyTo ? { reply_to: replyTo } : {}),
-  };
+  sgMail.setApiKey(apiKey);
 
-  // 7. Send to Resend
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(resendBody),
-    });
+    const { fromEmail, message, ticketId, toEmail } = JSON.parse(event.body || '{}');
+    
+    // Default to admin support if no specific destination is provided
+    const recipient = toEmail || 'accounts@thewrightsupport.com';
+    const isReply = recipient !== 'accounts@thewrightsupport.com';
 
-    const json = await res.json().catch(() => ({}));
+    console.log(`[DISPATCH] SendGrid Handshake: Ticket ${ticketId} -> ${recipient}`);
 
-    if (!res.ok) {
-      console.error("Resend API Error:", json);
-      return {
-        statusCode: res.status,
-        headers: corsHeaders,
-        body: JSON.stringify({ ok: false, error: json }),
-      };
-    }
+    const msg = {
+      to: recipient,
+      from: verifiedFrom,
+      replyTo: fromEmail,
+      subject: `[${ticketId}] ${isReply ? 'ADMIN REPLY' : 'FORENSIC DISPATCH'}: ${fromEmail}`,
+      html: `
+        <div style="font-family: 'Inter', -apple-system, sans-serif; padding: 40px; background-color: #f8fafc; color: #1e293b;">
+          <div style="background-color: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; padding: 40px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <h1 style="color: #4f46e5; margin: 0; font-size: 24px; font-style: italic; font-weight: 900; letter-spacing: -0.05em;">The_Wright_App_pro</h1>
+            <p style="color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3em; margin-bottom: 30px; font-weight: 800;">Forensic Dispatch Protocol</p>
+            
+            <div style="margin-bottom: 25px;">
+              <span style="background: #eef2ff; color: #6366f1; padding: 6px 14px; border-radius: 100px; font-size: 11px; font-weight: 900; border: 1px solid #e0e7ff;">TICKET REF: ${ticketId}</span>
+            </div>
+
+            <div style="background: #f1f5f9; padding: 24px; border-radius: 16px; margin: 24px 0; border: 1px solid #e2e8f0;">
+              <p style="color: #0f172a; font-size: 15px; line-height: 1.7; margin: 0; font-weight: 500;">${message}</p>
+            </div>
+
+            <div style="margin-top: 40px; border-top: 1px solid #f1f5f9; padding-top: 24px; text-align: center;">
+              <p style="color: #94a3b8; font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em; margin: 0;">Verified SendGrid Relay | Spike Wright</p>
+              <p style="color: #cbd5e1; font-size: 8px; margin-top: 4px;">Source: ${fromEmail}</p>
+            </div>
+          </div>
+        </div>
+      `,
+    };
+
+    await sgMail.send(msg);
 
     return {
       statusCode: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({ ok: true, data: json }),
+      body: JSON.stringify({ message: 'DISPATCH_SUCCESS' }),
     };
-  } catch (err) {
-    console.error("Function Error:", err);
+  } catch (error: any) {
+    console.error("[CRITICAL] SendGrid Relay Failure:", error);
+    
+    // Extract specific SendGrid errors if available
+    const sgError = error.response ? error.response.body : String(error);
+
     return {
       statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ ok: false, error: String(err) }),
+      body: JSON.stringify({ 
+        message: 'RELAY_CRASH', 
+        error: error.message || 'SendGrid Gateway Timeout',
+        details: sgError
+      }),
     };
   }
-}
-
-// Helper to prevent HTML injection
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+};

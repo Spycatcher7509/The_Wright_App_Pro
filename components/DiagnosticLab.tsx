@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { DBService } from '../services/dbService';
-import { ResendService, DispatchResponse } from '../services/resendService';
+import { DispatchService, DispatchResponse } from '../services/dispatchService';
 
 interface TestResult {
   id: string;
@@ -16,7 +16,7 @@ const DiagnosticLab: React.FC = () => {
   const [tests, setTests] = useState<TestResult[]>([
     { id: 'db', name: 'SQLite Persistence & GB-DateFormat', status: 'PENDING', logs: [] },
     { id: 'gemini', name: 'Gemini 3 Pro Handshake', status: 'PENDING', logs: [] },
-    { id: 'resend', name: 'Resend.com E2E Dispatch', status: 'PENDING', logs: [] },
+    { id: 'sendgrid', name: 'SendGrid SDK E2E Dispatch', status: 'PENDING', logs: [] },
     { id: 'dns', name: 'DNS Propagation Integrity', status: 'PENDING', logs: [] },
   ]);
 
@@ -33,16 +33,16 @@ const DiagnosticLab: React.FC = () => {
 
     // 1. DNS Interrogation
     updateStatus('dns', 'RUNNING');
-    addLog('dns', 'Querying MX records for mysecureapp.co.uk via DoH...');
+    addLog('dns', 'Querying MX records for wrightapp.pro via DoH...');
     try {
-      const response = await fetch(`https://dns.google/resolve?name=mysecureapp.co.uk&type=MX`);
+      const response = await fetch(`https://dns.google/resolve?name=wrightapp.pro&type=MX`);
       const data = await response.json();
       if (data.Answer) {
         addLog('dns', `Detected ${data.Answer.length} MX records.`);
         data.Answer.forEach((a: any) => addLog('dns', `Entry: ${a.data}`));
         updateStatus('dns', 'SUCCESS');
       } else {
-        addLog('dns', 'CRITICAL: No MX records detected. Resend will reject all outbound mail.');
+        addLog('dns', 'CRITICAL: No MX records detected. SendGrid may be flagged for SPF/DKIM violations.');
         updateStatus('dns', 'ERROR');
       }
     } catch (e) {
@@ -68,8 +68,6 @@ const DiagnosticLab: React.FC = () => {
     updateStatus('gemini', 'RUNNING');
     addLog('gemini', 'Testing API Key authority for Gemini 3 Pro...');
     try {
-      addLog('gemini', 'Requesting model capabilities list...');
-      await new Promise(r => setTimeout(r, 1000));
       addLog('gemini', 'Gemini-3-Pro-Preview is responsive.');
       updateStatus('gemini', 'SUCCESS');
     } catch (e) {
@@ -77,28 +75,22 @@ const DiagnosticLab: React.FC = () => {
       updateStatus('gemini', 'ERROR');
     }
 
-    // 4. Resend Test (The Big One)
-    updateStatus('resend', 'RUNNING');
-    addLog('resend', 'Preparing E2E Dispatch Payload...');
+    // 4. SendGrid Test
+    updateStatus('sendgrid', 'RUNNING');
+    addLog('sendgrid', 'Preparing E2E Dispatch Payload...');
     
-    if (window.location.hostname === 'localhost') {
-      addLog('resend', 'ADVISORY: Localhost detected. Ensure "netlify dev" is running or use a tunnel.');
-    }
-
-    const result: DispatchResponse = await ResendService.testEmail((status) => {
-      addLog('resend', status.message);
+    const result: DispatchResponse = await DispatchService.testDispatch((status) => {
+      addLog('sendgrid', status.message);
     });
 
     if (result.success) {
-      updateStatus('resend', 'SUCCESS', { statusCode: result.statusCode, rawResponse: result.rawResponse });
-      addLog('resend', 'LIVE DISPATCH CONFIRMED BY GATEWAY.');
+      updateStatus('sendgrid', 'SUCCESS', { statusCode: result.statusCode, rawResponse: result.rawResponse });
+      addLog('sendgrid', 'LIVE DISPATCH CONFIRMED BY SENDGRID GATEWAY.');
     } else {
-      updateStatus('resend', 'ERROR', { statusCode: result.statusCode, rawResponse: result.rawResponse });
-      addLog('resend', `FAIL: ${result.error || 'Unknown Rejection'}`);
-      if (result.statusCode === 403) {
-        addLog('resend', 'HINT: 403 Forbidden usually means the domain or API key is unverified in Resend Dashboard.');
-      } else if (result.statusCode === 404) {
-        addLog('resend', 'HINT: 404 means the Netlify Function endpoint was not found. Check build logs.');
+      updateStatus('sendgrid', 'ERROR', { statusCode: result.statusCode, rawResponse: result.rawResponse });
+      addLog('sendgrid', `FAIL: ${result.error || 'Unknown Rejection'}`);
+      if (result.statusCode === 401) {
+        addLog('sendgrid', 'HINT: 401 Unauthorised. Check your SENDGRID_API_KEY.');
       }
     }
   };
@@ -159,21 +151,6 @@ const DiagnosticLab: React.FC = () => {
             )}
           </div>
         ))}
-      </div>
-
-      <div className="p-10 bg-indigo-600 rounded-[3rem] shadow-2xl text-white space-y-4 relative overflow-hidden">
-        <h4 className="font-black italic text-xl tracking-tighter uppercase">Troubleshooting Instructions</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs font-medium opacity-90 leading-relaxed">
-          <div className="space-y-3">
-            <p className="font-black text-indigo-200 uppercase tracking-widest text-[10px]">1. Verify the Gateway</p>
-            <p>If you see a <strong>404</strong> or <strong>Link Failed</strong>, your Netlify functions are not deploying. Check your Netlify dashboard under the "Functions" tab to ensure <code>send-email</code> is active.</p>
-          </div>
-          <div className="space-y-3">
-            <p className="font-black text-indigo-200 uppercase tracking-widest text-[10px]">2. Verify the Domain</p>
-            <p>If you see a <strong>403</strong> or "Domain not verified", log into Resend.com and ensure <code>mysecureapp.co.uk</code> is 100% verified with all DNS records active.</p>
-          </div>
-        </div>
-        <div className="absolute top-0 right-0 p-10 text-9xl font-black text-white/5 pointer-events-none select-none italic">FIX</div>
       </div>
     </div>
   );

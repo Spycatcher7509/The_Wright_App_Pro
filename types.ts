@@ -1,4 +1,3 @@
-
 export type UserRole = 'SUPER_ADMIN' | 'LOCAL_ADMIN' | 'STANDARD';
 
 export interface User {
@@ -44,6 +43,7 @@ export interface Ticket {
   subject: string;
   description: string;
   status: 'OPEN' | 'CLOSED';
+  userEmail: string;
 }
 
 export interface BackupRecord {

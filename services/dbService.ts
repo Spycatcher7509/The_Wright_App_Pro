@@ -1,4 +1,3 @@
-
 import { LogEntry, Ticket, BackupRecord, User, ChatMessage } from '../types';
 import { GB_DATE_OPTIONS } from '../constants';
 
@@ -55,7 +54,7 @@ export class DBService {
     return data ? JSON.parse(data) : [];
   }
 
-  static async createTicket(subject: string, description: string): Promise<Ticket> {
+  static async createTicket(subject: string, description: string, userEmail: string): Promise<Ticket> {
     const tickets = await this.getTickets();
     const nextIdNumber = tickets.length + 1;
     const nextId = `WAP-TKT-${nextIdNumber.toString().padStart(4, '0')}`;
@@ -65,7 +64,8 @@ export class DBService {
       timestamp: this.getNow(),
       subject,
       description,
-      status: 'OPEN'
+      status: 'OPEN',
+      userEmail
     };
     
     tickets.push(newTicket);
